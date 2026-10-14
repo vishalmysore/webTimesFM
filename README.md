@@ -10,6 +10,10 @@ The 4-bit ONNX model (146 MB) loads from Hugging Face: [VishalMysore/timesfm-2.5
 
 - `index.html`: demo page with a chart, timing and a self-test against the official PyTorch forecasts
 - `timesfm.js`: small wrapper that handles patching, masks, RevIN normalisation, autoregressive roll-out and the quantile head
+- `examples.json`: 7 real-world series: COVID-19 cases (USA), world extreme poverty, wheat and maize prices, US unemployment, CO₂ at Mauna Loa, sunspots
+- `scripts/build_examples.py`: rebuilds `examples.json` from the public sources (World Bank, FRED/IMF, NOAA, SILSO, JHU)
+
+The page has a **Tutorial** tab that shows how to turn your own data (spreadsheet, CSV, open-data download) into a series, check accuracy by holding back recent points, and read the forecast band. It also has practice datasets to try.
 
 ## Use it in your own page
 

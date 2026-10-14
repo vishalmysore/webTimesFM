@@ -5,23 +5,41 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TimesFM Web</title>
 <style>
-  :root { --bg:#fafaf7; --fg:#1d1d1b; --muted:#6b6b66; --line:#e3e2dc; --accent:#2f6fde; --band:rgba(47,111,222,.16); --truth:#c2410c; --card:#fff; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#141413; --fg:#ecebe6; --muted:#9d9c95; --line:#2c2c29; --accent:#7aa7ff; --band:rgba(122,167,255,.2); --truth:#fb923c; --card:#1c1c1a; } }
+  :root { --bg:#fafaf7; --fg:#1d1d1b; --muted:#6b6b66; --line:#e3e2dc; --accent:#2f6fde; --band:rgba(47,111,222,.16); --truth:#c2410c; --card:#fff; --code:#f1f0ea; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#141413; --fg:#ecebe6; --muted:#9d9c95; --line:#2c2c29; --accent:#7aa7ff; --band:rgba(122,167,255,.2); --truth:#fb923c; --card:#1c1c1a; --code:#252522; } }
   * { box-sizing:border-box }
   body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; }
   main { max-width:1000px; margin:0 auto; padding:24px 16px 60px; }
-  h1 { font-size:22px; margin:0 0 4px } .sub { color:var(--muted); margin:0 0 20px }
+  h1 { font-size:22px; margin:0 0 4px } .sub { color:var(--muted); margin:0 0 16px }
+  h2 { font-size:18px; margin:0 0 8px } h3 { font-size:15px; margin:18px 0 6px }
+  a { color:var(--accent) }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px }
   .row { display:flex; flex-wrap:wrap; gap:12px; align-items:end }
   label { display:flex; flex-direction:column; font-size:12px; color:var(--muted); gap:4px }
+  label.inline { flex-direction:row; align-items:center; gap:6px; font-size:13px; color:var(--fg) }
   select,input,textarea,button { font:inherit; color:var(--fg); background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:6px 8px }
+  select { max-width:100% }
   textarea { width:100%; min-height:70px; font:12px ui-monospace,monospace }
   button { background:var(--accent); color:#fff; border:none; cursor:pointer; padding:8px 14px } button:disabled { opacity:.5; cursor:default }
   button.ghost { background:transparent; color:var(--fg); border:1px solid var(--line) }
+  button.small { padding:4px 10px; font-size:13px }
   canvas { width:100%; height:340px; display:block }
   #log { font:12px ui-monospace,monospace; white-space:pre-wrap; color:var(--muted); max-height:220px; overflow:auto; margin:0 }
   .stats { display:flex; gap:20px; flex-wrap:wrap; font-size:13px } .stats b { display:block; font-size:18px }
-  .legend { display:flex; gap:16px; font-size:12px; color:var(--muted); margin-top:6px } .sw { display:inline-block; width:14px; height:3px; vertical-align:middle; margin-right:4px }
+  .legend { display:flex; flex-wrap:wrap; gap:16px; font-size:12px; color:var(--muted); margin-top:6px } .sw { display:inline-block; width:14px; height:3px; vertical-align:middle; margin-right:4px }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:16px }
+  .tabs button { background:transparent; color:var(--muted); border-radius:6px 6px 0 0; border:1px solid transparent; border-bottom:none; margin-bottom:-1px; padding:8px 16px }
+  .tabs button[aria-selected=true] { color:var(--fg); background:var(--card); border-color:var(--line); font-weight:600 }
+  .info { margin-top:12px; padding:10px 12px; border-left:3px solid var(--accent); background:var(--bg); border-radius:0 6px 6px 0; font-size:14px }
+  .info .meta { color:var(--muted); font-size:12px; margin-top:4px }
+  .hidden { display:none !important }
+  .tut p, .tut li { max-width:72ch } .tut li { margin:4px 0 }
+  .tut code, .tut pre { background:var(--code); border-radius:4px; font:13px ui-monospace,monospace }
+  .tut code { padding:1px 4px } .tut pre { padding:10px 12px; overflow:auto; margin:8px 0 }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin-top:8px }
+  .grid .card { margin:0 } .grid p { margin:6px 0 10px; font-size:14px; color:var(--muted) }
+  table.t { border-collapse:collapse; font-size:14px; margin:8px 0 } table.t td, table.t th { border:1px solid var(--line); padding:4px 10px; text-align:left }
+  .warn { color:var(--truth) }
 </style>
 </head>
 <body>
@@ -29,6 +47,12 @@
   <h1>TimesFM 2.5 in the browser</h1>
   <p class="sub">Google's 200M-parameter time-series foundation model, running locally on WebGPU or WASM through ONNX Runtime Web. No server, no data leaves the page.</p>
 
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-forecast" aria-selected="true">Forecast</button>
+    <button role="tab" id="tab-tutorial" aria-selected="false">Tutorial: use your own data</button>
+  </div>
+
+  <section id="pane-forecast">
   <div class="card">
     <div class="row">
       <label>Model<select id="model"><option value="timesfm25_q4.onnx">4-bit (146 MB)</option></select></label>
@@ -41,21 +65,115 @@
 
   <div class="card">
     <div class="row">
-      <label>Series<select id="sample"><option value="seasonal">Daily cycle + noise</option><option value="trend_seasonal">Trend + two seasons</option><option value="random_walk">Random walk</option><option value="custom">Paste your own ↓</option></select></label>
+      <label>Series<select id="sample">
+        <optgroup label="Synthetic (self-test)" id="grp-synth">
+          <option value="syn:seasonal">Daily cycle + noise</option><option value="syn:trend_seasonal">Trend + two seasons</option><option value="syn:random_walk">Random walk</option>
+        </optgroup>
+        <optgroup label="Your data"><option value="custom">Paste or upload your own ↓</option></optgroup>
+      </select></label>
       <label>Context (pts)<input id="ctx" type="number" value="512" min="32" max="4096" step="32" style="width:90px"></label>
       <label>Horizon<input id="h" type="number" value="128" min="1" max="1024" style="width:80px"></label>
+      <label class="inline" title="Hide the most recent points from the model, then draw them so you can see how close the forecast came"><input id="holdout" type="checkbox" checked> Hold back last <span id="hh">128</span> points to check</label>
       <button id="run" disabled>Forecast</button>
     </div>
-    <label style="margin-top:12px">Custom values (comma, space or newline separated)<textarea id="custom" placeholder="12.1, 13.4, 15.0, ..."></textarea></label>
+    <div class="info" id="info"></div>
+    <div id="custombox" class="hidden" style="margin-top:12px">
+      <label>Custom values, oldest first (comma, space or newline separated; blank, <code>NA</code> or <code>?</code> = missing)<textarea id="custom" placeholder="12.1, 13.4, 15.0, ..."></textarea></label>
+      <div class="row" style="margin-top:8px;align-items:center">
+        <label class="inline">Or upload a CSV <input id="csv" type="file" accept=".csv,.tsv,.txt"></label>
+        <label class="inline hidden" id="colwrap">Column <select id="col"></select></label>
+        <span style="font-size:13px;color:var(--muted)">Not sure how? <a href="#tutorial" id="tutlink">Read the tutorial</a>.</span>
+      </div>
+    </div>
   </div>
 
   <div class="card">
     <canvas id="chart"></canvas>
-    <div class="legend"><span><i class="sw" style="background:var(--muted)"></i>history</span><span><i class="sw" style="background:var(--accent)"></i>median forecast</span><span><i class="sw" style="background:var(--band);height:10px"></i>q10–q90</span><span><i class="sw" style="background:var(--truth)"></i>actual (if known)</span></div>
+    <div class="legend"><span><i class="sw" style="background:var(--muted)"></i>history</span><span><i class="sw" style="background:var(--accent)"></i>median forecast</span><span><i class="sw" style="background:var(--band);height:10px"></i>q10–q90 (80% of outcomes)</span><span><i class="sw" style="background:var(--truth)"></i>actual (held-back points)</span></div>
     <div class="stats" id="stats" style="margin-top:12px"></div>
   </div>
 
   <div class="card"><pre id="log"></pre></div>
+  </section>
+
+  <section id="pane-tutorial" class="hidden tut">
+  <div class="card">
+    <h2>Forecast your own data in 5 minutes</h2>
+    <p>TimesFM takes <b>one list of numbers in time order</b> and predicts the next ones. It was never trained on your data. It's a "foundation model" that learned general patterns (trends, seasons, cycles) from billions of time points, so you can try it on almost anything that's measured regularly.</p>
+
+    <h3>1. What makes a good series</h3>
+    <ul>
+      <li><b>One number per time step</b>, such as daily sales, weekly rainfall, monthly bills or yearly harvest.</li>
+      <li><b>Evenly spaced.</b> Every step should be the same length: every day, every month or every year. Don't mix daily and weekly values.</li>
+      <li><b>Oldest first</b>, newest last.</li>
+      <li><b>Gaps are OK.</b> Leave a blank or write <code>NA</code>. The model treats it as missing; it doesn't treat it as zero.</li>
+      <li><b>Units don't matter.</b> Rupees, tonnes, °C and % all work, because the model rescales everything internally.</li>
+      <li><b>More history helps.</b> Aim for at least 2–3 full seasons, for example 3 years of monthly data if there's a yearly pattern. 30 points is the practical minimum.</li>
+    </ul>
+
+    <h3>2. Get the numbers into the page</h3>
+    <table class="t">
+      <tr><th>You have…</th><th>Do this</th></tr>
+      <tr><td>Excel or Google Sheets</td><td>Sort by date (oldest at top), select the cells of <b>one</b> column, copy, and paste into the <i>Custom values</i> box.</td></tr>
+      <tr><td>A CSV file</td><td>Choose <i>Paste or upload your own</i>, then <i>Upload a CSV</i>, and pick the column. A header row is detected and skipped.</td></tr>
+      <tr><td>A website table</td><td>Copy the column into a spreadsheet first to tidy it up, then copy it here.</td></tr>
+      <tr><td>Just an idea</td><td>Use one of the practice datasets below, or write numbers by hand.</td></tr>
+    </table>
+    <p>Pasted text can look like any of these:</p>
+<pre>120, 135, 128, 150, 162
+120 135 128 150 162
+120
+135
+NA
+150</pre>
+
+    <h3>3. Pick context and horizon</h3>
+    <ul>
+      <li><b>Context</b> is how many recent points the model reads. More is usually better, up to about 1–2k. For the <i>sunspots</i> example, use 1024+ so it sees several 11-year cycles.</li>
+      <li><b>Horizon</b> is how many steps ahead to predict. Keep it shorter than your history; accuracy falls the further out you go.</li>
+    </ul>
+
+    <h3>4. Check whether it's any good</h3>
+    <p>Leave <b>Hold back last N points</b> ticked. The page hides your most recent N values from the model, forecasts them, then draws the real values in orange. Two numbers appear under the chart:</p>
+    <ul>
+      <li><b>MAE vs actual</b> is the average miss, in your units.</li>
+      <li><b>MAE of "repeat last value"</b> is the miss from just copying the last known number forward. If TimesFM's MAE is lower, it's adding real value. If it's not, your series may be mostly noise or driven by outside events.</li>
+    </ul>
+    <p>When you're happy with the result, untick it to forecast the real future.</p>
+
+    <h3>5. Read the chart</h3>
+    <ul>
+      <li>The <b>blue line</b> is the median forecast: the model's single best guess.</li>
+      <li>The <b>shaded band</b> covers the 10th–90th percentile. The model expects about 8 in 10 future values to land inside it. A wide band means "I'm unsure". That's often the most useful part.</li>
+    </ul>
+
+    <h3>6. Know the limits</h3>
+    <ul>
+      <li>It only sees the numbers. It doesn't know about holidays, policy changes, wars or new COVID variants unless they show up as patterns in the history.</li>
+      <li>It forecasts one series at a time. It can't use rainfall to predict crop prices, for example.</li>
+      <li>For decisions that matter, compare it with simple baselines and domain knowledge. This is a demo, not financial or medical advice.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Practice datasets</h2>
+    <p style="color:var(--muted);font-size:14px">These are made-up numbers built to look realistic, so you can practise each kind of pattern. Click one to paste it into the forecast tab.</p>
+    <div class="grid" id="practice"></div>
+  </div>
+
+  <div class="card">
+    <h2>Where to find real data</h2>
+    <ul>
+      <li><a href="https://data.worldbank.org/" target="_blank" rel="noopener">World Bank Open Data</a>: poverty, health, agriculture and education by country, mostly yearly. Click <i>Download → CSV</i>.</li>
+      <li><a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener">FRED</a>: 800k+ economic series, including crop and food prices. Use <i>Download → CSV</i> on any chart.</li>
+      <li><a href="https://ourworldindata.org/" target="_blank" rel="noopener">Our World in Data</a>: COVID-19, energy, CO₂ and farming. Each chart has a <i>Download</i> tab.</li>
+      <li><a href="https://www.fao.org/faostat/" target="_blank" rel="noopener">FAOSTAT</a>: crop production, yields and food prices.</li>
+      <li><a href="https://data.gov.in/" target="_blank" rel="noopener">data.gov.in</a> / <a href="https://data.gov/" target="_blank" rel="noopener">data.gov</a>: government open data, including rainfall, mandi prices and hospital admissions.</li>
+      <li>Your own life: step counts, electricity meter readings, shop sales, website visits or milk yield from your cows.</li>
+    </ul>
+    <p style="font-size:14px;color:var(--muted)">If a download has many countries or products in one file, filter to <b>one</b> of them before using a column.</p>
+  </div>
+  </section>
 </main>
 
 <script type="module">
@@ -69,10 +187,102 @@ ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardw
 
 const $ = id => document.getElementById(id);
 const log = s => { $("log").textContent += s + "\n"; $("log").scrollTop = 1e9; console.log("[timesfm]", s); };
-let model = null, testdata = null;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+let model = null, testdata = null, examples = {}, lastDraw = null;
 
 async function getTestdata() { return testdata ??= await (await fetch(BASE + "testdata.json")).json(); }
 
+// ---- tabs ----
+function showTab(name) {
+  for (const t of ["forecast", "tutorial"]) { $("tab-" + t).setAttribute("aria-selected", t === name); $("pane-" + t).classList.toggle("hidden", t !== name); }
+  if (name === "tutorial" && location.hash !== "#tutorial") history.replaceState(null, "", "#tutorial");
+  if (name === "forecast" && location.hash) history.replaceState(null, "", location.pathname + location.search);
+}
+$("tab-forecast").onclick = () => showTab("forecast");
+$("tab-tutorial").onclick = () => showTab("tutorial");
+$("tutlink").onclick = e => { e.preventDefault(); showTab("tutorial"); scrollTo(0, 0); };
+if (location.hash === "#tutorial") showTab("tutorial");
+
+// ---- real-world examples ----
+const SYN_INFO = "A synthetic series from the self-test set, with known PyTorch forecasts. Real-world examples are further down the list.";
+fetch("examples.json").then(r => r.json()).then(d => {
+  const groups = {};
+  for (const e of d.examples) { examples[e.id] = e; (groups[e.group] ??= []).push(e); }
+  const sel = $("sample"), synth = $("grp-synth");
+  for (const [g, list] of Object.entries(groups)) {
+    const og = document.createElement("optgroup"); og.label = g;
+    for (const e of list) og.append(new Option(e.label, "ex:" + e.id));
+    sel.insertBefore(og, synth);
+  }
+  sel.value = "ex:covid_us"; onSample();
+}).catch(e => log("could not load examples.json: " + e.message));
+
+function onSample() {
+  const v = $("sample").value;
+  $("custombox").classList.toggle("hidden", v !== "custom");
+  if (v.startsWith("ex:")) {
+    const e = examples[v.slice(3)];
+    $("ctx").value = e.ctx; $("h").value = e.h;
+    const span = `${e.start.slice(0, e.freq === "yearly" ? 4 : e.freq === "monthly" ? 7 : 10)} → ${dateAt(e, e.values.length - 1)}`;
+    $("info").innerHTML = `<b>${esc(e.label)}</b>: ${esc(e.blurb)}<div class="meta">${esc(e.unit)} · ${e.freq} · ${e.values.length} points (${span}) · Source: <a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.source)}</a></div>`;
+  } else if (v === "custom") {
+    $("info").innerHTML = "Paste numbers below or upload a CSV, oldest first. Keep <b>Hold back</b> ticked to test accuracy on your own data first.";
+  } else { $("ctx").value = 512; $("h").value = 128; $("info").textContent = SYN_INFO; }
+  $("hh").textContent = $("h").value;
+}
+$("sample").onchange = onSample;
+$("h").oninput = () => $("hh").textContent = $("h").value;
+
+// date label for index i of an example series
+function dateAt(e, i) {
+  if (!e?.start) return String(i);
+  if (e.years) return String(e.years[i] ?? e.years.at(-1) + (i - e.years.length + 1));
+  const d = new Date(e.start + (e.start.length === 4 ? "-01-01" : "") + "T00:00:00Z");
+  if (e.freq === "daily") { d.setUTCDate(d.getUTCDate() + i); return d.toISOString().slice(0, 10); }
+  if (e.freq === "monthly") { d.setUTCMonth(d.getUTCMonth() + i); return d.toISOString().slice(0, 7); }
+  if (e.freq === "yearly") return String(d.getUTCFullYear() + i);
+  return String(i);
+}
+
+// ---- custom data: paste or CSV ----
+const parseNums = t => t.split(/[\s,;]+/).filter(Boolean).map(s => /^(na|nan|null|\?|-)$/i.test(s) ? NaN : Number(s));
+let csvRows = null;
+$("csv").onchange = async () => {
+  const f = $("csv").files[0]; if (!f) return;
+  const text = await f.text(), sep = text.includes("\t") ? "\t" : (text.split("\n")[0].split(";").length > text.split("\n")[0].split(",").length ? ";" : ",");
+  const rows = text.split(/\r?\n/).filter(l => l.trim()).map(l => l.split(sep).map(c => c.trim().replace(/^"|"$/g, "")));
+  const isNum = c => c !== "" && Number.isFinite(Number(c));
+  const header = rows[0].some(c => c && !isNum(c)) ? rows.shift() : rows[0].map((_, i) => "column " + (i + 1));
+  const numericCols = header.map((h, i) => [h, i, rows.filter(r => isNum(r[i] ?? "")).length]).filter(([, , n]) => n >= rows.length * 0.6);
+  if (!numericCols.length) { log("CSV: no numeric column found"); return; }
+  csvRows = rows; $("col").innerHTML = ""; for (const [h, i] of numericCols) $("col").append(new Option(`${h} (${i + 1})`, i));
+  $("col").value = numericCols.at(-1)[1]; $("colwrap").classList.remove("hidden"); fillFromCsv();
+  log(`CSV: ${rows.length} rows, ${numericCols.length} numeric column(s). Check the rows are oldest first.`);
+};
+function fillFromCsv() { const i = +$("col").value; $("custom").value = csvRows.map(r => isFinite(Number(r[i])) && r[i] !== "" ? r[i] : "NA").join("\n"); }
+$("col").onchange = fillFromCsv;
+
+// ---- practice datasets (made up, deterministic) ----
+function rng(seed) { return () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296 - 0.5; }; }
+const PRACTICE = [
+  { name: "Home electricity bill", what: "Monthly kWh for 6 years: high in summer (AC), a smaller winter bump, slowly rising.", ctx: 64, h: 12,
+    gen: r => Array.from({ length: 72 }, (_, t) => Math.round(220 + t * 0.8 + 90 * Math.max(0, Math.sin((t % 12 - 2) / 12 * 2 * Math.PI)) + 30 * Math.max(0, Math.cos(t % 12 / 12 * 2 * Math.PI)) + 18 * r())) },
+  { name: "Village rice harvest", what: "Yearly yield (tonnes/ha) over 40 years: better seeds lift the trend, and drought years dip.", ctx: 64, h: 5,
+    gen: r => Array.from({ length: 40 }, (_, t) => +(2.1 + 0.045 * t + ([7, 15, 16, 29].includes(t) ? -0.7 : 0) + 0.25 * r()).toFixed(2)) },
+  { name: "Clinic flu visits", what: "Weekly visits for 5 years: a winter peak every 52 weeks of varying size.", ctx: 256, h: 26,
+    gen: r => Array.from({ length: 260 }, (_, t) => Math.round(40 + (60 + 40 * Math.sin(t / 37)) * Math.exp(-(((t % 52) - 4) ** 2) / 40) + (t % 52 > 46 ? 70 * Math.exp(-((t % 52 - 56) ** 2) / 40) : 0) + 8 * r())) },
+  { name: "Corner shop daily sales", what: "Daily sales for 1 year: weekends are busier, with a festival rush near the end and a few missing days.", ctx: 320, h: 28,
+    gen: r => Array.from({ length: 365 }, (_, t) => [40, 97, 98, 200].includes(t) ? "NA" : Math.round(5000 + 4 * t + ([5, 6].includes(t % 7) ? 1800 : 0) + (t > 300 && t < 320 ? 2500 : 0) + 600 * r())) },
+];
+for (const p of PRACTICE) {
+  const vals = p.gen(rng(p.name.length * 7919)), div = document.createElement("div"); div.className = "card";
+  div.innerHTML = `<b>${esc(p.name)}</b><p>${esc(p.what)}</p>`;
+  const b = document.createElement("button"); b.className = "small"; b.textContent = "Use this data";
+  b.onclick = () => { $("sample").value = "custom"; onSample(); $("custom").value = vals.join(", "); $("ctx").value = p.ctx; $("h").value = p.h; $("hh").textContent = p.h; showTab("forecast"); scrollTo(0, 0); if (!model) log(`loaded practice data "${p.name}" — click Load model, then Forecast`); else $("run").click(); };
+  div.append(b); $("practice").append(div);
+}
+
+// ---- model ----
 $("load").onclick = async () => {
   $("load").disabled = true; $("run").disabled = $("selftest").disabled = true;
   let backend = $("backend").value;
@@ -88,21 +298,38 @@ $("load").onclick = async () => {
   $("load").disabled = false;
 };
 
+// Returns { hist, truth, meta, offset } where offset is the index of hist[0] in the full series.
+async function getSeries(ctx, h) {
+  const v = $("sample").value;
+  if (v.startsWith("syn:")) { const s = (await getTestdata()).series[v.slice(4)]; return { hist: s.slice(0, ctx).slice(-ctx), truth: s.slice(ctx, ctx + h), meta: null, offset: 0 }; }
+  const meta = v.startsWith("ex:") ? examples[v.slice(3)] : null;
+  const all = meta ? meta.values : parseNums($("custom").value);
+  if (all.length < 2) throw new Error("add some numbers first");
+  const hold = $("holdout").checked && all.length > h + 8;
+  if ($("holdout").checked && !hold) log(`series has only ${all.length} points, so nothing is held back`);
+  const known = hold ? all.slice(0, -h) : all, hist = known.slice(-ctx);
+  return { hist, truth: hold ? all.slice(-h) : null, meta, offset: known.length - hist.length };
+}
+
 $("run").onclick = async () => {
   const ctx = +$("ctx").value, h = +$("h").value;
-  let full, truth = null;
-  if ($("sample").value === "custom") full = $("custom").value.split(/[\s,;]+/).filter(Boolean).map(Number);
-  else { const td = await getTestdata(); full = td.series[$("sample").value]; truth = full.slice(ctx, ctx + h); full = full.slice(0, ctx); }
-  const hist = full.slice(-ctx);
+  let s; try { s = await getSeries(ctx, h); } catch (e) { log(e.message); return; }
   $("run").disabled = true;
-  const r = await model.forecast(hist, h, { maxContext: ctx });
+  const r = await model.forecast(s.hist, h, { maxContext: ctx });
   $("run").disabled = false;
-  draw(hist, r, truth);
-  const mae = truth?.length ? truth.reduce((a, v, i) => a + Math.abs(v - r.point[i]), 0) / truth.length : null;
-  const naive = truth?.length ? truth.reduce((a, v) => a + Math.abs(v - hist.at(-1)), 0) / truth.length : null;
+  draw(s, r); lastDraw = [s, r];
+  const ok = s.truth?.map((v, i) => [v, i]).filter(([v]) => Number.isFinite(v)) ?? [];
+  const last = s.hist.findLast(Number.isFinite);
+  const mae = ok.length ? ok.reduce((a, [v, i]) => a + Math.abs(v - r.point[i]), 0) / ok.length : null;
+  const naive = ok.length ? ok.reduce((a, [v]) => a + Math.abs(v - last), 0) / ok.length : null;
+  const fmt = x => Math.abs(x) >= 100 ? x.toFixed(0) : x.toPrecision(3);
+  const unit = s.meta ? ` <span style="color:var(--muted)">${esc(s.meta.unit)}</span>` : "";
   $("stats").innerHTML = `<div><b>${r.ms.toFixed(0)} ms</b>inference (${r.passes} pass${r.passes > 1 ? "es" : ""})</div>` +
-    (mae != null ? `<div><b>${mae.toFixed(3)}</b>MAE vs actual</div><div><b>${naive.toFixed(3)}</b>MAE of "repeat last value"</div>` : "");
-  log(`forecast h=${h} ctx=${hist.length}: ${r.ms.toFixed(0)} ms`);
+    `<div><b>${fmt(r.point.at(-1))}</b>forecast at step ${h}${unit}</div>` +
+    (mae != null ? `<div><b>${fmt(mae)}</b>MAE vs actual</div><div><b>${fmt(naive)}</b>MAE of "repeat last value"</div>` +
+      `<div><b class="${mae < naive ? "" : "warn"}">${mae < naive ? ((1 - mae / naive) * 100).toFixed(0) + "% better" : "no better"}</b>than the naive guess</div>` +
+      (mae < naive ? "" : `<div style="flex-basis:100%;color:var(--muted)">That's normal for prices, epidemics and other series driven by outside shocks: "no change" is a hard baseline to beat. Try a shorter horizon, or look at whether the actual line stayed inside the shaded band.</div>`) : "");
+  log(`forecast ${s.meta?.id ?? $("sample").value} h=${h} ctx=${s.hist.length}: ${r.ms.toFixed(0)} ms`);
 };
 
 $("selftest").onclick = async () => {
@@ -120,18 +347,30 @@ $("selftest").onclick = async () => {
   log("self-test done");
 };
 
-function draw(hist, r, truth) {
-  const c = $("chart"), dpr = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight;
+addEventListener("resize", () => lastDraw && draw(...lastDraw));
+
+function draw({ hist, truth, meta, offset }, r) {
+  const c = $("chart"), dpr = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight, B = meta ? 18 : 0;
   c.width = W * dpr; c.height = H * dpr; const g = c.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, W, H);
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  const show = hist.slice(-Math.max(3 * r.point.length, 128)), n = show.length + r.point.length;
-  const vals = [...show, ...r.quantiles.flatMap(q => [q[1], q[9]]), ...(truth || [])];
+  const keep = Math.max(3 * r.point.length, 128), show = hist.slice(-keep), skip = hist.length - show.length, n = show.length + r.point.length;
+  const vals = [...show, ...r.quantiles.flatMap(q => [q[1], q[9]]), ...(truth || [])].filter(Number.isFinite);
   let lo = Math.min(...vals), hi = Math.max(...vals); const pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad;
-  const X = i => 8 + (i / (n - 1)) * (W - 16), Y = v => H - 8 - ((v - lo) / (hi - lo)) * (H - 16);
-  const line = (arr, off, col, w) => { g.beginPath(); arr.forEach((v, i) => i ? g.lineTo(X(i + off), Y(v)) : g.moveTo(X(i + off), Y(v))); g.strokeStyle = col; g.lineWidth = w; g.stroke(); };
+  const X = i => 8 + (i / (n - 1)) * (W - 16), Y = v => H - B - 8 - ((v - lo) / (hi - lo)) * (H - B - 16);
+  const line = (arr, off, col, w) => { g.beginPath(); let pen = false; arr.forEach((v, i) => { if (!Number.isFinite(v)) { pen = false; return; } pen ? g.lineTo(X(i + off), Y(v)) : g.moveTo(X(i + off), Y(v)); pen = true; }); g.strokeStyle = col; g.lineWidth = w; g.stroke(); };
   g.beginPath(); r.quantiles.forEach((q, i) => g.lineTo(X(show.length + i), Y(q[9]))); for (let i = r.quantiles.length - 1; i >= 0; i--) g.lineTo(X(show.length + i), Y(r.quantiles[i][1])); g.fillStyle = css("--band"); g.fill();
-  g.strokeStyle = css("--line"); g.setLineDash([4, 4]); g.beginPath(); g.moveTo(X(show.length), 0); g.lineTo(X(show.length), H); g.stroke(); g.setLineDash([]);
+  g.strokeStyle = css("--line"); g.setLineDash([4, 4]); g.beginPath(); g.moveTo(X(show.length), 0); g.lineTo(X(show.length), H - B); g.stroke(); g.setLineDash([]);
   line(show, 0, css("--muted"), 1.2); line([...r.point], show.length, css("--accent"), 2); if (truth) line(truth, show.length, css("--truth"), 1);
+  // y range and, for real examples, dates under the chart
+  g.fillStyle = css("--muted"); g.font = "11px system-ui,sans-serif"; g.textAlign = "left";
+  const fmt = x => Math.abs(hi - lo) >= 10 ? x.toFixed(0) : x.toPrecision(3);
+  g.fillText(fmt(hi - pad), 10, 14); g.fillText(fmt(lo + pad), 10, H - B - 12);
+  if (meta) {
+    const i0 = offset + skip;
+    g.fillText(dateAt(meta, i0), 8, H - 4);
+    g.textAlign = "center"; g.fillText(dateAt(meta, i0 + show.length), X(show.length), H - 4);
+    g.textAlign = "right"; g.fillText(dateAt(meta, i0 + n - 1), W - 8, H - 4);
+  }
 }
 </script>
 </body>
