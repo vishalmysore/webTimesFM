@@ -40,6 +40,10 @@
   .grid .card { margin:0 } .grid p { margin:6px 0 10px; font-size:14px; color:var(--muted) }
   table.t { border-collapse:collapse; font-size:14px; margin:8px 0 } table.t td, table.t th { border:1px solid var(--line); padding:4px 10px; text-align:left }
   .warn { color:var(--truth) }
+  table.odds { border-collapse:collapse; width:100%; font-size:14px; margin:10px 0 } table.odds th, table.odds td { border-bottom:1px solid var(--line); padding:6px 8px; text-align:right; white-space:nowrap } table.odds th:first-child, table.odds td:first-child { text-align:left }
+  table.odds td.big { font-weight:700; font-size:16px } .bar { display:inline-block; height:8px; background:var(--accent); border-radius:4px; vertical-align:middle; margin-left:6px }
+  .tablewrap { overflow-x:auto }
+  .note { font-size:13px; color:var(--muted) }
 </style>
 </head>
 <body>
@@ -49,6 +53,7 @@
 
   <div class="tabs" role="tablist">
     <button role="tab" id="tab-forecast" aria-selected="true">Forecast</button>
+    <button role="tab" id="tab-current" aria-selected="false">Current affairs</button>
     <button role="tab" id="tab-tutorial" aria-selected="false">Tutorial: use your own data</button>
   </div>
 
@@ -94,6 +99,51 @@
   </div>
 
   <div class="card"><pre id="log"></pre></div>
+  </section>
+
+  <section id="pane-current" class="hidden tut">
+  <div class="card">
+    <h2>Forecasting this week's news</h2>
+    <p>Two kinds of current-affairs forecast, both running in your browser on the same model. <span id="cur-asof" class="note"></span></p>
+    <p class="note"><b>Not betting or financial advice.</b> These are demonstrations of what a pattern-based model can and can't see.</p>
+  </div>
+
+  <div class="card">
+    <h2>⚾ Who wins the <span id="mlb-season"></span> World Series?</h2>
+    <p>The same recipe as the <a href="https://vishalmysore.github.io/webForecast/wc/" target="_blank" rel="noopener">World Cup forecaster</a>:</p>
+    <ol>
+      <li><b>Team strength:</b> an Elo rating for every MLB team, updated after every game of the season and playoffs. Winners gain points and losers lose them, with a bonus for home field and bigger wins.</li>
+      <li><b>TimesFM</b> reads each remaining team's rating history and forecasts its strength for the next 10 games, <i>with an uncertainty band</i>.</li>
+      <li><b>Simulation:</b> the rest of the playoffs are played out 100,000 times, starting from the current series scores, with 2-3-2 home field. Each game is a weighted coin flip from the two teams' strengths.</li>
+    </ol>
+    <p id="mlb-state"></p>
+    <div class="tablewrap"><table class="odds" id="mlb-table"></table></div>
+    <div class="row" style="align-items:center">
+      <button id="mlb-run" disabled>Add TimesFM forecast (load the model first)</button>
+      <span id="mlb-status" class="note"></span>
+    </div>
+    <h3>What it doesn't know</h3>
+    <ul class="note">
+      <li>Starting pitchers, injuries, bullpen fatigue and travel. In baseball, the day's starting pitcher matters a lot.</li>
+      <li>TimesFM's band on team strength is narrow (about ±10 rating points), so most of the answer comes from the season's results and the series score. TimesFM adds a little extra uncertainty.</li>
+      <li>Sanity check: in MLB history, teams leading a best-of-7 series 2–0 have gone on to win about 84% of the time.</li>
+    </ul>
+    <p class="note" id="mlb-source"></p>
+  </div>
+
+  <div class="card">
+    <h2>🛢️ Oil and ₿ Bitcoin: the next 30 days</h2>
+    <p>Oil is high because of the Iran war, and markets are waiting for the US Federal Reserve decision on 28 October. Click a card to forecast the next 30 days in the Forecast tab.</p>
+    <div class="grid" id="markets"></div>
+    <h3>Read these forecasts with care</h3>
+    <ul class="note">
+      <li><b>Prices behave like a random walk.</b> "No change" is a hard baseline. Over the 30 days to mid-October 2026, TimesFM didn't beat it for any of these three. The useful part is the <b>shaded band</b>: how far prices could plausibly move.</li>
+      <li><b>The model can't read the news.</b> When we hid Brent's last 30 days (to 6 Oct 2026), the real prices stayed inside the 80% band only about 30% of the time: the war-driven spike broke the pattern. For Bitcoin the band held 83% of the real prices, about as designed.</li>
+      <li>Public oil prices lag about a week behind the markets, so the forecast starts from the last published day.</li>
+      <li>Tick <b>Hold back</b> in the Forecast tab to repeat this check yourself.</li>
+    </ul>
+    <p class="note">Sources: <a href="https://fred.stlouisfed.org/series/DCOILBRENTEU" target="_blank" rel="noopener">Brent (FRED DCOILBRENTEU)</a>, <a href="https://fred.stlouisfed.org/series/DCOILWTICO" target="_blank" rel="noopener">WTI (FRED DCOILWTICO)</a>, <a href="https://fred.stlouisfed.org/series/CBBTCUSD" target="_blank" rel="noopener">Bitcoin (FRED CBBTCUSD, Coinbase)</a>. News context: <a href="https://finance.yahoo.com/personal-finance/investing/article/bitcoin-and-ethereum-prices-today-thursday-october-8-2026-crypto-values-fall-as-oil-prices-soar-113341860.html" target="_blank" rel="noopener">Yahoo Finance, 8 Oct 2026</a>; <a href="https://www.democracynow.org/2026/10/13/headlines" target="_blank" rel="noopener">Democracy Now headlines, 13 Oct 2026</a>; <a href="https://www.mlb.com/news/2026-mlb-playoff-and-world-series-schedule" target="_blank" rel="noopener">MLB.com playoff schedule</a>.</p>
+  </div>
   </section>
 
   <section id="pane-tutorial" class="hidden tut">
@@ -191,25 +241,27 @@ ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardw
 const $ = id => document.getElementById(id);
 const log = s => { $("log").textContent += s + "\n"; $("log").scrollTop = 1e9; console.log("[timesfm]", s); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-let model = null, testdata = null, examples = {}, lastDraw = null;
+let model = null, testdata = null, examples = {}, lastDraw = null, current = null;
 
 async function getTestdata() { return testdata ??= await (await fetch(BASE + "testdata.json")).json(); }
 
 // ---- tabs ----
+const TABS = ["forecast", "current", "tutorial"];
 function showTab(name) {
-  for (const t of ["forecast", "tutorial"]) { $("tab-" + t).setAttribute("aria-selected", t === name); $("pane-" + t).classList.toggle("hidden", t !== name); }
-  if (name === "tutorial" && location.hash !== "#tutorial") history.replaceState(null, "", "#tutorial");
+  for (const t of TABS) { $("tab-" + t).setAttribute("aria-selected", t === name); $("pane-" + t).classList.toggle("hidden", t !== name); }
+  if (name !== "forecast" && location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
   if (name === "forecast" && location.hash) history.replaceState(null, "", location.pathname + location.search);
+  if (name === "forecast" && lastDraw) draw(...lastDraw);
 }
-$("tab-forecast").onclick = () => showTab("forecast");
-$("tab-tutorial").onclick = () => showTab("tutorial");
+for (const t of TABS) $("tab-" + t).onclick = () => showTab(t);
 $("tutlink").onclick = e => { e.preventDefault(); showTab("tutorial"); scrollTo(0, 0); };
-if (location.hash === "#tutorial") showTab("tutorial");
+if (TABS.includes(location.hash.slice(1))) showTab(location.hash.slice(1));
 
 // ---- real-world examples ----
 const SYN_INFO = "A synthetic series from the self-test set, with known PyTorch forecasts. Real-world examples are further down the list.";
-fetch("examples.json").then(r => r.json()).then(d => {
+Promise.all([fetch("examples.json").then(r => r.json()), fetch("current.json").then(r => r.json()).catch(() => null)]).then(([d, cur]) => {
   const groups = {};
+  if (cur) { current = cur; for (const e of cur.markets) { examples[e.id] = e; (groups[e.group] ??= []).push(e); } renderCurrent(); }
   for (const e of d.examples) { examples[e.id] = e; (groups[e.group] ??= []).push(e); }
   const sel = $("sample"), synth = $("grp-synth");
   for (const [g, list] of Object.entries(groups)) {
@@ -218,29 +270,38 @@ fetch("examples.json").then(r => r.json()).then(d => {
     sel.insertBefore(og, synth);
   }
   sel.value = "ex:covid_us"; onSample();
-}).catch(e => log("could not load examples.json: " + e.message));
+}).catch(e => log("could not load examples: " + e.message));
 
 function onSample() {
   const v = $("sample").value;
   $("custombox").classList.toggle("hidden", v !== "custom");
   if (v.startsWith("ex:")) {
     const e = examples[v.slice(3)];
-    $("ctx").value = e.ctx; $("h").value = e.h;
+    $("ctx").value = e.ctx; $("h").value = e.h; $("holdout").checked = e.holdout !== false;
     const span = `${e.start.slice(0, e.freq === "yearly" ? 4 : e.freq === "monthly" ? 7 : 10)} → ${dateAt(e, e.values.length - 1)}`;
     $("info").innerHTML = `<b>${esc(e.label)}</b>: ${esc(e.blurb)}<div class="meta">${esc(e.unit)} · ${e.freq} · ${e.values.length} points (${span}) · Source: <a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.source)}</a></div>`;
   } else if (v === "custom") {
+    $("holdout").checked = true;
     $("info").innerHTML = "Paste numbers below or upload a CSV, oldest first. Keep <b>Hold back</b> ticked to test accuracy on your own data first.";
-  } else { $("ctx").value = 512; $("h").value = 128; $("info").textContent = SYN_INFO; }
+  } else { $("ctx").value = 512; $("h").value = 128; $("holdout").checked = true; $("info").textContent = SYN_INFO; }
   $("hh").textContent = $("h").value;
 }
 $("sample").onchange = onSample;
-$("model").onchange = () => { if (model) { model = null; $("run").disabled = $("selftest").disabled = true; $("status").textContent = "model changed. Click Load model"; } };
+$("model").onchange = () => { if (model) { model = null; $("run").disabled = $("selftest").disabled = $("mlb-run").disabled = true; $("status").textContent = "model changed. Click Load model"; } };
 $("h").oninput = () => $("hh").textContent = $("h").value;
 
 // date label for index i of an example series
 function dateAt(e, i) {
   if (!e?.start) return String(i);
   if (e.years) return String(e.years[i] ?? e.years.at(-1) + (i - e.years.length + 1));
+  if (e.dates) {
+    if (i < e.dates.length) return e.dates[i];
+    // past the data: count calendar days, or weekdays only for series that skip weekends
+    const weekdays = !e.dates.slice(-30).some(s => [0, 6].includes(new Date(s + "T00:00:00Z").getUTCDay()));
+    const d = new Date(e.dates.at(-1) + "T00:00:00Z");
+    for (let k = e.dates.length - 1; k < i;) { d.setUTCDate(d.getUTCDate() + 1); if (!weekdays || ![0, 6].includes(d.getUTCDay())) k++; }
+    return d.toISOString().slice(0, 10);
+  }
   const d = new Date(e.start + (e.start.length === 4 ? "-01-01" : "") + "T00:00:00Z");
   if (e.freq === "daily") { d.setUTCDate(d.getUTCDate() + i); return d.toISOString().slice(0, 10); }
   if (e.freq === "monthly") { d.setUTCMonth(d.getUTCMonth() + i); return d.toISOString().slice(0, 7); }
@@ -265,6 +326,70 @@ $("csv").onchange = async () => {
 };
 function fillFromCsv() { const i = +$("col").value; $("custom").value = csvRows.map(r => isFinite(Number(r[i])) && r[i] !== "" ? r[i] : "NA").join("\n"); }
 $("col").onchange = fillFromCsv;
+
+// ---- current affairs: MLB odds + market cards ----
+const short = t => t.split(" ").at(-1);
+function gauss(r) { let u = 0, v = 0; while (!u) u = r(); while (!v) v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+// strength: {team: [mean, sd]}. Returns {pennant: {team: p}, title: {team: p}}.
+function simulatePlayoffs(mlb, strength, N = 100000) {
+  const r = mulberry(2026), HFA = mlb.hfa, home = [1, 1, 0, 0, 0, 1, 1], pennant = {}, title = {};
+  const win = (a, b, aHome) => r() < 1 / (1 + 10 ** (-((a - b) + (aHome ? HFA : -HFA)) / 400));
+  const series = (hi, lo, s, wh = 0, wl = 0) => { let g = wh + wl; while (wh < 4 && wl < 4) { win(s[hi], s[lo], home[g] === 1) ? wh++ : wl++; g++; } return wh === 4 ? hi : lo; };
+  for (let n = 0; n < N; n++) {
+    const s = {}; for (const [t, [m, sd]] of Object.entries(strength)) s[t] = m + (sd ? sd * gauss(r) : 0);
+    const champs = mlb.lcs.map(x => series(x.home_field, x.other, s, x.wins[0], x.wins[1]));
+    for (const c of champs) pennant[c] = (pennant[c] || 0) + 1;
+    const [a, b] = champs, rec = t => mlb.teams[t].record[0], [hi, lo] = rec(a) >= rec(b) ? [a, b] : [b, a];
+    const w = series(hi, lo, s); title[w] = (title[w] || 0) + 1;
+  }
+  for (const o of [pennant, title]) for (const k in o) o[k] /= N;
+  return { pennant, title };
+}
+let mlbEloOnly = null;
+function renderMlb(withTfm = null, bands = null) {
+  const mlb = current.mlb, teams = Object.keys(mlb.teams);
+  const base = mlbEloOnly ??= simulatePlayoffs(mlb, Object.fromEntries(teams.map(t => [t, [mlb.teams[t].elo, 0]])));
+  const rows = teams.sort((a, b) => ((withTfm ?? base).title[b] || 0) - ((withTfm ?? base).title[a] || 0));
+  const pct = x => ((x || 0) * 100).toFixed(1) + "%";
+  $("mlb-table").innerHTML = `<tr><th>Team</th><th>2026 record</th><th>Strength (Elo)</th>${bands ? "<th>TimesFM next-10 band</th>" : ""}<th>Wins league series</th><th>Wins World Series<br><span class="note">Elo only</span></th>${withTfm ? '<th>Wins World Series<br><span class="note">+ TimesFM band</span></th>' : ""}</tr>` +
+    rows.map(t => { const T = mlb.teams[t], top = withTfm ?? base;
+      return `<tr><td>${esc(t)}</td><td>${T.record[0]}–${T.record[1]}</td><td>${Math.round(T.elo)}</td>${bands ? `<td>${Math.round(bands[t][0])}–${Math.round(bands[t][1])}</td>` : ""}<td>${pct(top.pennant[t])}</td>` +
+        `<td${withTfm ? "" : ' class="big"'}>${pct(base.title[t])}${withTfm ? "" : `<span class="bar" style="width:${Math.round((base.title[t] || 0) * 120)}px"></span>`}</td>` +
+        (withTfm ? `<td class="big">${pct(withTfm.title[t])}<span class="bar" style="width:${Math.round((withTfm.title[t] || 0) * 120)}px"></span></td>` : "") + "</tr>"; }).join("");
+}
+function renderCurrent() {
+  const mlb = current.mlb, d = s => new Date(s + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  $("cur-asof").textContent = `Data as of ${d(mlb.as_of)} (baseball) and the latest published prices (see each card).`;
+  $("mlb-season").textContent = mlb.season;
+  $("mlb-state").innerHTML = "<b>Where things stand:</b> " + mlb.lcs.map(x => {
+    const [a, b] = x.wins, lead = a === b ? `tied ${a}–${b}` : a > b ? `${esc(short(x.home_field))} lead ${a}–${b}` : `${esc(short(x.other))} lead ${b}–${a}`;
+    return `${esc(x.home_field)} vs ${esc(x.other)}, ${lead}`; }).join("; ") + `. The World Series is best-of-7; the team with the better regular-season record gets home field.`;
+  $("mlb-source").innerHTML = `Data: ${esc(mlb.source)}. Elo settings: K=${mlb.k}, home advantage ${mlb.hfa} points. Highest-rated teams this season: ${mlb.top.map(([t, e]) => `${esc(short(t))} ${e}`).join(", ")}.`;
+  renderMlb();
+  for (const e of current.markets) {
+    const div = document.createElement("div"); div.className = "card";
+    const last = e.values.at(-1), prev = e.values.at(-31), ch = (last / prev - 1) * 100;
+    div.innerHTML = `<b>${esc(e.label)}</b><p>${esc(e.blurb)}</p><p style="color:var(--fg)"><b>${last.toLocaleString("en-US", { maximumFractionDigits: 2 })}</b> ${esc(e.unit)} on ${d(e.dates.at(-1))} <span class="${ch >= 0 ? "" : "warn"}">(${ch >= 0 ? "+" : ""}${ch.toFixed(1)}% since ${d(e.dates.at(-31))})</span></p>`;
+    const b = document.createElement("button"); b.className = "small"; b.textContent = "Forecast next 30 days";
+    b.onclick = () => { $("sample").value = "ex:" + e.id; onSample(); showTab("forecast"); scrollTo(0, 0); if (model) $("run").click(); else log(`selected ${e.label}: click Load model, then Forecast`); };
+    div.append(b); $("markets").append(div);
+  }
+}
+$("mlb-run").onclick = async () => {
+  const mlb = current.mlb; $("mlb-run").disabled = true; $("mlb-status").textContent = "forecasting team strengths…";
+  const strength = {}, bands = {};
+  for (const [t, T] of Object.entries(mlb.teams)) {
+    const r = await model.forecast(T.history, 10, { maxContext: 512, continuousQuantiles: false });
+    const avg = k => r.quantiles.reduce((a, q) => a + q[k], 0) / r.quantiles.length;
+    const q10 = avg(1), q50 = avg(5), q90 = avg(9);
+    strength[t] = [q50, Math.max((q90 - q10) / 2.563, 1)]; bands[t] = [q10, q90];
+  }
+  $("mlb-status").textContent = "simulating 100,000 playoffs…"; await new Promise(r => setTimeout(r, 30));
+  const t0 = performance.now(), res = simulatePlayoffs(mlb, strength);
+  renderMlb(res, bands); window.__mlb = res;
+  $("mlb-status").textContent = `done in ${((performance.now() - t0) / 1000).toFixed(1)} s`; $("mlb-run").disabled = false;
+};
 
 // ---- practice datasets (made up, deterministic) ----
 function rng(seed) { return () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296 - 0.5; }; }
@@ -297,6 +422,7 @@ $("load").onclick = async () => {
     $("status").textContent = `ready · ${backend}`;
     log(`session ready in ${model.info.sessionMs.toFixed(0)} ms (${(model.info.bytes / 1e6).toFixed(0)} MB)`);
     $("run").disabled = $("selftest").disabled = false;
+    if (current) { $("mlb-run").disabled = false; $("mlb-run").textContent = "Add TimesFM forecast"; }
     window.__timesfm_ready = true;
   } catch (e) { log("load failed: " + e.message); $("status").textContent = "load failed"; }
   $("load").disabled = false;
