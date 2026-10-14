@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TimesFM Web</title>
+<style>
+  :root { --bg:#fafaf7; --fg:#1d1d1b; --muted:#6b6b66; --line:#e3e2dc; --accent:#2f6fde; --band:rgba(47,111,222,.16); --truth:#c2410c; --card:#fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#141413; --fg:#ecebe6; --muted:#9d9c95; --line:#2c2c29; --accent:#7aa7ff; --band:rgba(122,167,255,.2); --truth:#fb923c; --card:#1c1c1a; } }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; }
+  main { max-width:1000px; margin:0 auto; padding:24px 16px 60px; }
+  h1 { font-size:22px; margin:0 0 4px } .sub { color:var(--muted); margin:0 0 20px }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px }
+  .row { display:flex; flex-wrap:wrap; gap:12px; align-items:end }
+  label { display:flex; flex-direction:column; font-size:12px; color:var(--muted); gap:4px }
+  select,input,textarea,button { font:inherit; color:var(--fg); background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:6px 8px }
+  textarea { width:100%; min-height:70px; font:12px ui-monospace,monospace }
+  button { background:var(--accent); color:#fff; border:none; cursor:pointer; padding:8px 14px } button:disabled { opacity:.5; cursor:default }
+  button.ghost { background:transparent; color:var(--fg); border:1px solid var(--line) }
+  canvas { width:100%; height:340px; display:block }
+  #log { font:12px ui-monospace,monospace; white-space:pre-wrap; color:var(--muted); max-height:220px; overflow:auto; margin:0 }
+  .stats { display:flex; gap:20px; flex-wrap:wrap; font-size:13px } .stats b { display:block; font-size:18px }
+  .legend { display:flex; gap:16px; font-size:12px; color:var(--muted); margin-top:6px } .sw { display:inline-block; width:14px; height:3px; vertical-align:middle; margin-right:4px }
+</style>
+</head>
+<body>
+<main>
+  <h1>TimesFM 2.5 in the browser</h1>
+  <p class="sub">Google's 200M-parameter time-series foundation model, running locally on WebGPU or WASM through ONNX Runtime Web. No server, no data leaves the page.</p>
+
+  <div class="card">
+    <div class="row">
+      <label>Model<select id="model"><option value="timesfm25_q4.onnx">4-bit (146 MB)</option></select></label>
+      <label>Backend<select id="backend"><option value="webgpu">WebGPU</option><option value="wasm">WASM (CPU)</option></select></label>
+      <button id="load">Load model</button>
+      <button id="selftest" class="ghost" disabled>Run self-test vs PyTorch</button>
+      <span id="status" style="color:var(--muted);font-size:13px"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <label>Series<select id="sample"><option value="seasonal">Daily cycle + noise</option><option value="trend_seasonal">Trend + two seasons</option><option value="random_walk">Random walk</option><option value="custom">Paste your own ↓</option></select></label>
+      <label>Context (pts)<input id="ctx" type="number" value="512" min="32" max="4096" step="32" style="width:90px"></label>
+      <label>Horizon<input id="h" type="number" value="128" min="1" max="1024" style="width:80px"></label>
+      <button id="run" disabled>Forecast</button>
+    </div>
+    <label style="margin-top:12px">Custom values (comma, space or newline separated)<textarea id="custom" placeholder="12.1, 13.4, 15.0, ..."></textarea></label>
+  </div>
+
+  <div class="card">
+    <canvas id="chart"></canvas>
+    <div class="legend"><span><i class="sw" style="background:var(--muted)"></i>history</span><span><i class="sw" style="background:var(--accent)"></i>median forecast</span><span><i class="sw" style="background:var(--band);height:10px"></i>q10–q90</span><span><i class="sw" style="background:var(--truth)"></i>actual (if known)</span></div>
+    <div class="stats" id="stats" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card"><pre id="log"></pre></div>
+</main>
+
+<script type="module">
+import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/ort.webgpu.min.mjs";
+import { TimesFM } from "./timesfm.js";
+// Weights are served from Hugging Face. Add ?local to the URL to load files next to this page instead.
+const HF = "https://huggingface.co/VishalMysore/timesfm-2.5-200m-onnx-web/resolve/main/";
+const BASE = new URLSearchParams(location.search).has("local") ? "./" : HF;
+ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/";
+ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
+
+const $ = id => document.getElementById(id);
+const log = s => { $("log").textContent += s + "\n"; $("log").scrollTop = 1e9; console.log("[timesfm]", s); };
+let model = null, testdata = null;
+
+async function getTestdata() { return testdata ??= await (await fetch(BASE + "testdata.json")).json(); }
+
+$("load").onclick = async () => {
+  $("load").disabled = true; $("run").disabled = $("selftest").disabled = true;
+  let backend = $("backend").value;
+  if (backend === "webgpu" && !navigator.gpu) { log("WebGPU not available in this browser — falling back to WASM"); backend = "wasm"; $("backend").value = "wasm"; }
+  try {
+    log(`loading ${$("model").value} on ${backend}…`);
+    model = await TimesFM.load(ort, BASE + $("model").value, backend, (g, t) => $("status").textContent = `downloading ${(g / 1e6).toFixed(0)}${t ? " / " + (t / 1e6).toFixed(0) : ""} MB`);
+    $("status").textContent = `ready · ${backend}`;
+    log(`session ready in ${model.info.sessionMs.toFixed(0)} ms (${(model.info.bytes / 1e6).toFixed(0)} MB)`);
+    $("run").disabled = $("selftest").disabled = false;
+    window.__timesfm_ready = true;
+  } catch (e) { log("load failed: " + e.message); $("status").textContent = "load failed"; }
+  $("load").disabled = false;
+};
+
+$("run").onclick = async () => {
+  const ctx = +$("ctx").value, h = +$("h").value;
+  let full, truth = null;
+  if ($("sample").value === "custom") full = $("custom").value.split(/[\s,;]+/).filter(Boolean).map(Number);
+  else { const td = await getTestdata(); full = td.series[$("sample").value]; truth = full.slice(ctx, ctx + h); full = full.slice(0, ctx); }
+  const hist = full.slice(-ctx);
+  $("run").disabled = true;
+  const r = await model.forecast(hist, h, { maxContext: ctx });
+  $("run").disabled = false;
+  draw(hist, r, truth);
+  const mae = truth?.length ? truth.reduce((a, v, i) => a + Math.abs(v - r.point[i]), 0) / truth.length : null;
+  const naive = truth?.length ? truth.reduce((a, v) => a + Math.abs(v - hist.at(-1)), 0) / truth.length : null;
+  $("stats").innerHTML = `<div><b>${r.ms.toFixed(0)} ms</b>inference (${r.passes} pass${r.passes > 1 ? "es" : ""})</div>` +
+    (mae != null ? `<div><b>${mae.toFixed(3)}</b>MAE vs actual</div><div><b>${naive.toFixed(3)}</b>MAE of "repeat last value"</div>` : "");
+  log(`forecast h=${h} ctx=${hist.length}: ${r.ms.toFixed(0)} ms`);
+};
+
+$("selftest").onclick = async () => {
+  const td = await getTestdata(); const results = {};
+  for (const [name, s] of Object.entries(td.series)) {
+    const r = await model.forecast(s.slice(0, td.ctx), td.h, { maxContext: td.ctx, continuousQuantiles: false });
+    const ref = td.ref[name]; let maxDev = 0, maxScale = 0;
+    for (let i = 0; i < td.h; i++) for (let q = 0; q < 10; q++) { maxDev = Math.max(maxDev, Math.abs(r.quantiles[i][q] - ref[i][q])); maxScale = Math.max(maxScale, Math.abs(ref[i][q])); }
+    const truth = s.slice(td.ctx, td.ctx + td.h);
+    const mae = truth.reduce((a, v, i) => a + Math.abs(v - r.point[i]), 0) / truth.length;
+    results[name] = { max_abs_dev_vs_pytorch: +maxDev.toPrecision(3), rel_dev: +(maxDev / maxScale).toPrecision(3), mae_vs_actual: +mae.toFixed(4), ms: Math.round(r.ms) };
+    log(`${name.padEnd(15)} max|Δ| vs PyTorch=${maxDev.toExponential(2)}  MAE vs actual=${mae.toFixed(4)}  ${r.ms.toFixed(0)} ms`);
+  }
+  window.__timesfm_selftest = { backend: model.info.backend, model: $("model").value, results };
+  log("self-test done");
+};
+
+function draw(hist, r, truth) {
+  const c = $("chart"), dpr = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight;
+  c.width = W * dpr; c.height = H * dpr; const g = c.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, W, H);
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const show = hist.slice(-Math.max(3 * r.point.length, 128)), n = show.length + r.point.length;
+  const vals = [...show, ...r.quantiles.flatMap(q => [q[1], q[9]]), ...(truth || [])];
+  let lo = Math.min(...vals), hi = Math.max(...vals); const pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad;
+  const X = i => 8 + (i / (n - 1)) * (W - 16), Y = v => H - 8 - ((v - lo) / (hi - lo)) * (H - 16);
+  const line = (arr, off, col, w) => { g.beginPath(); arr.forEach((v, i) => i ? g.lineTo(X(i + off), Y(v)) : g.moveTo(X(i + off), Y(v))); g.strokeStyle = col; g.lineWidth = w; g.stroke(); };
+  g.beginPath(); r.quantiles.forEach((q, i) => g.lineTo(X(show.length + i), Y(q[9]))); for (let i = r.quantiles.length - 1; i >= 0; i--) g.lineTo(X(show.length + i), Y(r.quantiles[i][1])); g.fillStyle = css("--band"); g.fill();
+  g.strokeStyle = css("--line"); g.setLineDash([4, 4]); g.beginPath(); g.moveTo(X(show.length), 0); g.lineTo(X(show.length), H); g.stroke(); g.setLineDash([]);
+  line(show, 0, css("--muted"), 1.2); line([...r.point], show.length, css("--accent"), 2); if (truth) line(truth, show.length, css("--truth"), 1);
+}
+</script>
+</body>
+</html>

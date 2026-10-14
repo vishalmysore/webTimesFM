@@ -1,0 +1,32 @@
+# webTimesFM
+
+Time-series forecasting that runs entirely in your browser. This page runs Google Research's [TimesFM 2.5](https://huggingface.co/google/timesfm-2.5-200m-pytorch) (200M) on WebGPU or WASM through [ONNX Runtime Web](https://onnxruntime.ai/docs/tutorials/web/). There's no server and nothing to install, and your data never leaves the tab.
+
+**Try it:** https://vishalmysore.github.io/webTimesFM/
+
+The 4-bit ONNX model (146 MB) loads from Hugging Face: [VishalMysore/timesfm-2.5-200m-onnx-web](https://huggingface.co/VishalMysore/timesfm-2.5-200m-onnx-web). The model card there explains the conversion, the export and quantisation scripts, and accuracy against PyTorch.
+
+## Files
+
+- `index.html`: demo page with a chart, timing and a self-test against the official PyTorch forecasts
+- `timesfm.js`: small wrapper that handles patching, masks, RevIN normalisation, autoregressive roll-out and the quantile head
+
+## Use it in your own page
+
+Copy `timesfm.js` next to your page:
+
+```html
+<script type="module">
+import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/ort.webgpu.min.mjs";
+import { TimesFM } from "./timesfm.js";
+ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/";
+
+const model = await TimesFM.load(ort,
+  "https://huggingface.co/VishalMysore/timesfm-2.5-200m-onnx-web/resolve/main/timesfm25_q4.onnx",
+  navigator.gpu ? "webgpu" : "wasm");
+
+const { point, quantiles } = await model.forecast([/* your numbers, oldest first */], 128);
+</script>
+```
+
+This is an unofficial community conversion. Google does not make or endorse it. Apache-2.0.
