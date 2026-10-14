@@ -52,7 +52,7 @@ export class TimesFM {
    * Forecast one univariate series.
    * @param series   array of numbers (NaN allowed — treated as missing)
    * @param horizon  steps to forecast
-   * @param opts     { maxContext: 1024, continuousQuantiles: true }
+   * @param opts     { maxContext: 1024, continuousQuantiles: true, fixQuantileCrossing: true }
    *                  maxContext: context is truncated to the most recent maxContext points.
    *                  continuousQuantiles: use the 1024-step quantile head for q10..q90 (as the
    *                  official ForecastConfig.use_continuous_quantile_head does) — smoother bands.
@@ -105,6 +105,11 @@ export class TimesFM {
     const quantiles = out.slice(0, horizon);
     if (spread) for (let t = 0; t < horizon; t++)
       for (const q of [1, 2, 3, 4, 6, 7, 8, 9]) quantiles[t][q] = spread[t][q] - spread[t][MEDIAN] + quantiles[t][MEDIAN];
+    // Keep quantiles ordered q10 <= ... <= q50 <= ... <= q90 (official fix_quantile_crossing).
+    if (opts.fixQuantileCrossing ?? true) for (const r of quantiles) {
+      for (const i of [4, 3, 2, 1]) r[i] = Math.min(r[i], r[i + 1]);
+      for (const i of [6, 7, 8, 9]) r[i] = Math.max(r[i], r[i - 1]);
+    }
     return { point: Float32Array.from(quantiles, r => r[MEDIAN]), quantiles, passes, ms: performance.now() - t0 };
   }
 }

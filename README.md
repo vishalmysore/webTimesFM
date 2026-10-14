@@ -4,7 +4,7 @@ Time-series forecasting that runs entirely in your browser. This page runs Googl
 
 **Try it:** https://vishalmysore.github.io/webTimesFM/
 
-The 4-bit ONNX model (146 MB) loads from Hugging Face: [VishalMysore/timesfm-2.5-200m-onnx-web](https://huggingface.co/VishalMysore/timesfm-2.5-200m-onnx-web). The model card there explains the conversion, the export and quantisation scripts, and accuracy against PyTorch.
+You can choose the 8-bit model (261 MB, almost identical to full precision, the default) or the 4-bit model (146 MB, smaller but less accurate on short series). Both load from Hugging Face: [VishalMysore/timesfm-2.5-200m-onnx-web](https://huggingface.co/VishalMysore/timesfm-2.5-200m-onnx-web). The model card there explains the conversion, the export and quantisation scripts, and accuracy against PyTorch.
 
 ## Files
 
@@ -26,7 +26,7 @@ import { TimesFM } from "./timesfm.js";
 ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/";
 
 const model = await TimesFM.load(ort,
-  "https://huggingface.co/VishalMysore/timesfm-2.5-200m-onnx-web/resolve/main/timesfm25_q4.onnx",
+  "https://huggingface.co/VishalMysore/timesfm-2.5-200m-onnx-web/resolve/main/timesfm25_q8.onnx",
   navigator.gpu ? "webgpu" : "wasm");
 
 const { point, quantiles } = await model.forecast([/* your numbers, oldest first */], 128);

@@ -55,7 +55,7 @@
   <section id="pane-forecast">
   <div class="card">
     <div class="row">
-      <label>Model<select id="model"><option value="timesfm25_q4.onnx">4-bit (146 MB)</option></select></label>
+      <label title="8-bit is almost identical to Google's full-precision model. 4-bit downloads faster but is less accurate on short series (under ~64 points).">Model<select id="model"><option value="timesfm25_q8.onnx">8-bit (261 MB, most accurate)</option><option value="timesfm25_q4.onnx">4-bit (146 MB, smaller, less accurate on short series)</option></select></label>
       <label>Backend<select id="backend"><option value="webgpu">WebGPU</option><option value="wasm">WASM (CPU)</option></select></label>
       <button id="load">Load model</button>
       <button id="selftest" class="ghost" disabled>Run self-test vs PyTorch</button>
@@ -132,6 +132,9 @@ NA
       <li><b>Context</b> is how many recent points the model reads. More is usually better, up to about 1–2k. For the <i>sunspots</i> example, use 1024+ so it sees several 11-year cycles.</li>
       <li><b>Horizon</b> is how many steps ahead to predict. Keep it shorter than your history; accuracy falls the further out you go.</li>
     </ul>
+
+    <h3>Which model: 8-bit or 4-bit?</h3>
+    <p><b>8-bit</b> (261 MB) gives almost the same answers as Google's full-precision model. <b>4-bit</b> (146 MB) downloads faster and is fine on long histories (hundreds of points), but on short series (under ~64 points) its forecast can drift noticeably. If your data is short, use 8-bit. Either way, the browser caches the file after the first load.</p>
 
     <h3>4. Check whether it's any good</h3>
     <p>Leave <b>Hold back last N points</b> ticked. The page hides your most recent N values from the model, forecasts them, then draws the real values in orange. Two numbers appear under the chart:</p>
@@ -231,6 +234,7 @@ function onSample() {
   $("hh").textContent = $("h").value;
 }
 $("sample").onchange = onSample;
+$("model").onchange = () => { if (model) { model = null; $("run").disabled = $("selftest").disabled = true; $("status").textContent = "model changed. Click Load model"; } };
 $("h").oninput = () => $("hh").textContent = $("h").value;
 
 // date label for index i of an example series
