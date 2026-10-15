@@ -6,6 +6,8 @@ Time-series forecasting that runs entirely in your browser. This page runs Googl
 
 **Article:** [Forecast Anything in Your Browser](docs/article.md): real examples on COVID, poverty, farming, climate and more.
 
+**Article:** [I Asked Google's AI to Predict the World Series, Oil Prices and Bitcoin](docs/current-affairs.md): current-affairs forecasts, updated daily.
+
 You can choose the 8-bit model (261 MB, almost identical to full precision, the default) or the 4-bit model (146 MB, smaller but less accurate on short series). Both load from Hugging Face: [VishalMysore/timesfm-2.5-200m-onnx-web](https://huggingface.co/VishalMysore/timesfm-2.5-200m-onnx-web). The model card there explains the conversion, the export and quantisation scripts, and accuracy against PyTorch.
 
 ## Files
