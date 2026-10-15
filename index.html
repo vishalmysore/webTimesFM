@@ -126,7 +126,7 @@
     <ul class="note">
       <li>Starting pitchers, injuries, bullpen fatigue and travel. In baseball, the day's starting pitcher matters a lot.</li>
       <li>TimesFM's band on team strength is narrow (about ±10 rating points), so most of the answer comes from the season's results and the series score. TimesFM adds a little extra uncertainty.</li>
-      <li>Sanity check: in MLB history, teams leading a best-of-7 series 2–0 have gone on to win about 84% of the time.</li>
+      <li>Sanity check: in MLB history, teams leading a best-of-7 series 2–0 have gone on to win about 84% of the time, and only one team (the 2004 Red Sox) has come back from 0–3.</li>
     </ul>
     <p class="note" id="mlb-source"></p>
   </div>
@@ -340,8 +340,10 @@ function simulatePlayoffs(mlb, strength, N = 100000) {
     const s = {}; for (const [t, [m, sd]] of Object.entries(strength)) s[t] = m + (sd ? sd * gauss(r) : 0);
     const champs = mlb.lcs.map(x => series(x.home_field, x.other, s, x.wins[0], x.wins[1]));
     for (const c of champs) pennant[c] = (pennant[c] || 0) + 1;
-    const [a, b] = champs, rec = t => mlb.teams[t].record[0], [hi, lo] = rec(a) >= rec(b) ? [a, b] : [b, a];
-    const w = series(hi, lo, s); title[w] = (title[w] || 0) + 1;
+    let w;
+    if (mlb.ws) w = series(mlb.ws.home_field, mlb.ws.other, s, mlb.ws.wins[0], mlb.ws.wins[1]);
+    else { const [a, b] = champs, rec = t => mlb.teams[t].record[0], [hi, lo] = rec(a) >= rec(b) ? [a, b] : [b, a]; w = series(hi, lo, s); }
+    title[w] = (title[w] || 0) + 1;
   }
   for (const o of [pennant, title]) for (const k in o) o[k] /= N;
   return { pennant, title };
@@ -352,7 +354,7 @@ function renderMlb(withTfm = null, bands = null) {
   const base = mlbEloOnly ??= simulatePlayoffs(mlb, Object.fromEntries(teams.map(t => [t, [mlb.teams[t].elo, 0]])));
   const rows = teams.sort((a, b) => ((withTfm ?? base).title[b] || 0) - ((withTfm ?? base).title[a] || 0));
   const pct = x => ((x || 0) * 100).toFixed(1) + "%";
-  $("mlb-table").innerHTML = `<tr><th>Team</th><th>2026 record</th><th>Strength (Elo)</th>${bands ? "<th>TimesFM next-10 band</th>" : ""}<th>Wins league series</th><th>Wins World Series<br><span class="note">Elo only</span></th>${withTfm ? '<th>Wins World Series<br><span class="note">+ TimesFM band</span></th>' : ""}</tr>` +
+  $("mlb-table").innerHTML = `<tr><th>Team</th><th>${mlb.season} record</th><th>Strength (Elo)</th>${bands ? "<th>TimesFM next-10 band</th>" : ""}<th>Wins league series</th><th>Wins World Series<br><span class="note">Elo only</span></th>${withTfm ? '<th>Wins World Series<br><span class="note">+ TimesFM band</span></th>' : ""}</tr>` +
     rows.map(t => { const T = mlb.teams[t], top = withTfm ?? base;
       return `<tr><td>${esc(t)}</td><td>${T.record[0]}–${T.record[1]}</td><td>${Math.round(T.elo)}</td>${bands ? `<td>${Math.round(bands[t][0])}–${Math.round(bands[t][1])}</td>` : ""}<td>${pct(top.pennant[t])}</td>` +
         `<td${withTfm ? "" : ' class="big"'}>${pct(base.title[t])}${withTfm ? "" : `<span class="bar" style="width:${Math.round((base.title[t] || 0) * 120)}px"></span>`}</td>` +
@@ -360,11 +362,16 @@ function renderMlb(withTfm = null, bands = null) {
 }
 function renderCurrent() {
   const mlb = current.mlb, d = s => new Date(s + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-  $("cur-asof").textContent = `Data as of ${d(mlb.as_of)} (baseball) and the latest published prices (see each card).`;
+  $("cur-asof").textContent = `Updated automatically every day (last refresh ${d(current.generated)}). Baseball results to ${d(mlb.as_of)}; prices as of the date on each card.`;
   $("mlb-season").textContent = mlb.season;
-  $("mlb-state").innerHTML = "<b>Where things stand:</b> " + mlb.lcs.map(x => {
-    const [a, b] = x.wins, lead = a === b ? `tied ${a}–${b}` : a > b ? `${esc(short(x.home_field))} lead ${a}–${b}` : `${esc(short(x.other))} lead ${b}–${a}`;
-    return `${esc(x.home_field)} vs ${esc(x.other)}, ${lead}`; }).join("; ") + `. The World Series is best-of-7; the team with the better regular-season record gets home field.`;
+  const score = x => { const [a, b] = x.wins, H = short(x.home_field), O = short(x.other);
+    if (a === 4 || b === 4) return `${esc(a === 4 ? H : O)} won ${Math.max(a, b)}–${Math.min(a, b)}`;
+    return a === b ? (a ? `tied ${a}–${b}` : "not started") : a > b ? `${esc(H)} lead ${a}–${b}` : `${esc(O)} lead ${b}–${a}`; };
+  const ws = mlb.ws, champ = ws && (ws.wins[0] === 4 ? ws.home_field : ws.wins[1] === 4 ? ws.other : null);
+  $("mlb-state").innerHTML = champ
+    ? `<b>Final:</b> the ${esc(champ)} won the ${mlb.season} World Series (${score(ws)}). The table below shows the final result.`
+    : "<b>Where things stand:</b> " + mlb.lcs.map(x => `${esc(x.home_field)} vs ${esc(x.other)}: ${score(x)}`).join("; ") +
+      (ws ? `. <b>World Series:</b> ${esc(ws.home_field)} vs ${esc(ws.other)}: ${score(ws)}.` : `. The World Series is best-of-7; the team with the better regular-season record gets home field.`);
   $("mlb-source").innerHTML = `Data: ${esc(mlb.source)}. Elo settings: K=${mlb.k}, home advantage ${mlb.hfa} points. Highest-rated teams this season: ${mlb.top.map(([t, e]) => `${esc(short(t))} ${e}`).join(", ")}.`;
   renderMlb();
   for (const e of current.markets) {
