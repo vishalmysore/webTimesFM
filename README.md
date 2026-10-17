@@ -4,6 +4,8 @@ Time-series forecasting that runs entirely in your browser. This page runs Googl
 
 **Try it:** https://vishalmysore.github.io/webTimesFM/
 
+**New here? Start with:** [What Is TimesFM? Google's Time-Series Foundation Model Explained](docs/what-is-timesfm.md)
+
 **Article:** [Forecast Anything in Your Browser](docs/article.md): real examples on COVID, poverty, farming, climate and more.
 
 **Article:** [I Asked Google's AI to Predict the World Series, Oil Prices and Bitcoin](docs/current-affairs.md): current-affairs forecasts, updated daily.
