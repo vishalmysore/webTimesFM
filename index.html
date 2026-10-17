@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TimesFM Web</title>
 <style>
-  :root { --bg:#fafaf7; --fg:#1d1d1b; --muted:#6b6b66; --line:#e3e2dc; --accent:#2f6fde; --band:rgba(47,111,222,.16); --truth:#c2410c; --card:#fff; --code:#f1f0ea; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#141413; --fg:#ecebe6; --muted:#9d9c95; --line:#2c2c29; --accent:#7aa7ff; --band:rgba(122,167,255,.2); --truth:#fb923c; --card:#1c1c1a; --code:#252522; } }
+  :root { --bg:#fafaf7; --fg:#1d1d1b; --muted:#6b6b66; --line:#e3e2dc; --accent:#2f6fde; --band:rgba(47,111,222,.16); --truth:#c2410c; --storm:#7c3aed; --card:#fff; --code:#f1f0ea; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#141413; --fg:#ecebe6; --muted:#9d9c95; --line:#2c2c29; --accent:#7aa7ff; --band:rgba(122,167,255,.2); --truth:#fb923c; --storm:#c4b5fd; --card:#1c1c1a; --code:#252522; } }
   * { box-sizing:border-box }
   body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; }
   main { max-width:1000px; margin:0 auto; padding:24px 16px 60px; }
@@ -44,6 +44,10 @@
   table.odds td.big { font-weight:700; font-size:16px } .bar { display:inline-block; height:8px; background:var(--accent); border-radius:4px; vertical-align:middle; margin-left:6px }
   .tablewrap { overflow-x:auto }
   .note { font-size:13px; color:var(--muted) }
+  .pill { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; border:1px solid var(--line); white-space:nowrap }
+  .pill.alert { border-color:var(--storm); color:var(--storm); font-weight:600 }
+  .news { font-size:13px; margin:8px 0; padding:8px 10px; border-radius:6px; background:var(--bg) }
+  .news ul { margin:4px 0 0; padding-left:18px } .news li { margin:2px 0 }
 </style>
 </head>
 <body>
@@ -79,6 +83,7 @@
       <label>Context (pts)<input id="ctx" type="number" value="512" min="32" max="4096" step="32" style="width:90px"></label>
       <label>Horizon<input id="h" type="number" value="128" min="1" max="1024" style="width:80px"></label>
       <label class="inline" title="Hide the most recent points from the model, then draw them so you can see how close the forecast came"><input id="holdout" type="checkbox" checked> Hold back last <span id="hh">128</span> points to check</label>
+      <label class="inline hidden" id="stormwrap" title="How far this price moved over the same number of days in its most turbulent past periods (5th–95th percentile). Switched on automatically when today's news tone is unusual."><input id="storm" type="checkbox"> Stormy-news band</label>
       <button id="run" disabled>Forecast</button>
     </div>
     <div class="info" id="info"></div>
@@ -94,7 +99,7 @@
 
   <div class="card">
     <canvas id="chart"></canvas>
-    <div class="legend"><span><i class="sw" style="background:var(--muted)"></i>history</span><span><i class="sw" style="background:var(--accent)"></i>median forecast</span><span><i class="sw" style="background:var(--band);height:10px"></i>q10–q90 (80% of outcomes)</span><span><i class="sw" style="background:var(--truth)"></i>actual (held-back points)</span></div>
+    <div class="legend"><span><i class="sw" style="background:var(--muted)"></i>history</span><span><i class="sw" style="background:var(--accent)"></i>median forecast</span><span><i class="sw" style="background:var(--band);height:10px"></i>q10–q90 (80% of outcomes)</span><span><i class="sw" style="background:var(--truth)"></i>actual (held-back points)</span><span id="legend-storm" class="hidden"><i class="sw" style="background:var(--storm)"></i>stormy-news band (5–95% of past turbulent periods)</span></div>
     <div class="stats" id="stats" style="margin-top:12px"></div>
   </div>
 
@@ -132,12 +137,33 @@
   </div>
 
   <div class="card">
+    <h2>📰 Reading the news: a warning light, not a crystal ball</h2>
+    <p>TimesFM only reads numbers, so a small sentiment model reads the headlines for it. Every day, up to 100 Google News headlines per topic (oil, Bitcoin, each team) are scored with <b>VADER</b>, a lightweight sentiment model, and averaged into a daily <b>news tone</b> from −10 (very negative) to +10 (very positive).</p>
+    <ul>
+      <li><b>Tone is not direction.</b> "War escalates" is negative news but pushes oil <i>up</i>. So the tone never moves the forecast line.</li>
+      <li><b>⚠ Alert:</b> when the latest day's tone is unusually far from the topic's own normal (more than 2× its usual day-to-day swing), the page raises a warning: the pattern forecast may be about to break.</li>
+      <li><b>Stormy-news band:</b> on an alert, the forecast chart adds a wider amber range showing how far that price moved over the same number of days in its most turbulent past periods.</li>
+    </ul>
+    <h3>Would it have warned us about the oil spike?</h3>
+    <p class="note">We replayed the daily oil-news tone from August to October 2026, using only each day's headlines (no hindsight), against the Brent price:</p>
+    <div class="tablewrap"><table class="odds">
+      <tr><th>Alert day</th><th>Oil news tone</th><th>How unusual</th><th>What Brent did next</th></tr>
+      <tr><td>31 Aug</td><td>−3.2</td><td>2.3× usual swing</td><td><b>+7%</b> by the next trading day</td></tr>
+      <tr><td>5 Sep</td><td>−3.9</td><td>2.9×</td><td>+2%</td></tr>
+      <tr><td>9 Sep</td><td>−4.4</td><td>2.8×</td><td><b>+10%</b> the next day</td></tr>
+      <tr><td>20 Sep</td><td>−0.4</td><td>2.4×</td><td>−3%</td></tr>
+      <tr><td>30 Sep – 1 Oct</td><td>−2.3, −3.1</td><td>2.0×, 2.9×</td><td><b>+18%</b> on 2 Oct</td></tr>
+    </table></div>
+    <p class="note">Three of five alerts came just before big moves, and it missed one (+8% on 15 Sep). That's two months of data, so it's encouraging but not proof. And even the stormy band was too narrow for this war spike: only about 27% of Brent's real prices stayed inside it. News can tell you <b>when</b> to worry, not always <b>how much</b>.</p>
+  </div>
+
+  <div class="card">
     <h2>🛢️ Oil and ₿ Bitcoin: the next 30 days</h2>
     <p>Oil is high because of the Iran war, and markets are waiting for the US Federal Reserve decision on 28 October. Click a card to forecast the next 30 days in the Forecast tab.</p>
     <div class="grid" id="markets"></div>
     <h3>Read these forecasts with care</h3>
     <ul class="note">
-      <li><b>Prices behave like a random walk.</b> "No change" is a hard baseline. Over the 30 days to mid-October 2026, TimesFM only matched it: a few percent better on Brent and Bitcoin, slightly worse on WTI. The useful part is the <b>shaded band</b>: how far prices could plausibly move.</li>
+      <li><b>Prices behave like a random walk.</b> "No change" is a hard baseline. Tested on the latest 30 days, TimesFM roughly ties it: a few percent better on some days, a few percent worse on others. The useful part is the <b>shaded band</b>: how far prices could plausibly move.</li>
       <li><b>The model can't read the news.</b> When we hid Brent's last 30 days (to 6 Oct 2026), the real prices stayed inside the 80% band only about 30% of the time: the war-driven spike broke the pattern. For Bitcoin the band held 80–90% of the real prices (it shifts a little as each day's data arrives), close to the 80% it is designed for.</li>
       <li>Public oil prices lag about a week behind the markets, so the forecast starts from the last published day.</li>
       <li>Tick <b>Hold back</b> in the Forecast tab to repeat this check yourself.</li>
@@ -275,11 +301,14 @@ Promise.all([fetch("examples.json").then(r => r.json()), fetch("current.json").t
 function onSample() {
   const v = $("sample").value;
   $("custombox").classList.toggle("hidden", v !== "custom");
+  if (!v.startsWith("ex:")) { $("stormwrap").classList.add("hidden"); $("storm").checked = false; }
   if (v.startsWith("ex:")) {
     const e = examples[v.slice(3)];
     $("ctx").value = e.ctx; $("h").value = e.h; $("holdout").checked = e.holdout !== false;
     const span = `${e.start.slice(0, e.freq === "yearly" ? 4 : e.freq === "monthly" ? 7 : 10)} → ${dateAt(e, e.values.length - 1)}`;
-    $("info").innerHTML = `<b>${esc(e.label)}</b>: ${esc(e.blurb)}<div class="meta">${esc(e.unit)} · ${e.freq} · ${e.values.length} points (${span}) · Source: <a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.source)}</a></div>`;
+    const nt = e.group === "Current affairs" ? newsTopic(e.id) : null;
+    $("stormwrap").classList.toggle("hidden", e.group !== "Current affairs"); $("storm").checked = !!nt?.alert;
+    $("info").innerHTML = `<b>${esc(e.label)}</b>: ${esc(e.blurb)}<div class="meta">${esc(e.unit)} · ${e.freq} · ${e.values.length} points (${span}) · Source: <a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.source)}</a></div>` + newsBlock(nt, "Today's news:");
   } else if (v === "custom") {
     $("holdout").checked = true;
     $("info").innerHTML = "Paste numbers below or upload a CSV, oldest first. Keep <b>Hold back</b> ticked to test accuracy on your own data first.";
@@ -327,6 +356,29 @@ $("csv").onchange = async () => {
 function fillFromCsv() { const i = +$("col").value; $("custom").value = csvRows.map(r => isFinite(Number(r[i])) && r[i] !== "" ? r[i] : "NA").join("\n"); }
 $("col").onchange = fillFromCsv;
 
+// ---- news tone (from current.json, built daily by scripts/build_news.py) ----
+const newsTopic = id => current?.news?.topics && Object.values(current.news.topics).find(t => t.markets.includes(id));
+const toneTxt = x => (x >= 0 ? "+" : "") + x.toFixed(1);
+function newsBlock(t, title) {
+  if (!t) return "";
+  const cut = x => x.length > 140 ? x.slice(0, 137).trimEnd() + "…" : x;
+  const hl = t.headlines.slice(0, 3).map(h => `<li><a href="${esc(h.url)}" target="_blank" rel="noopener">${esc(cut(h.title))}</a> <span class="note">${esc(h.source)} · tone ${toneTxt(h.tone)}</span></li>`).join("");
+  return `<div class="news"><b>${esc(title)}</b> <span class="pill${t.alert ? " alert" : ""}">${t.alert ? "⚠ unusual news" : "normal news"}</span> tone ${toneTxt(t.tone)} on ${esc(t.day)} (normal ${toneTxt(t.baseline)}), ${t.n} headlines` +
+    (t.alert ? `<div style="color:var(--storm)">${esc(t.reason)}. The pattern forecast may be about to break.</div>` : "") + (hl ? `<ul>${hl}</ul>` : "") + "</div>";
+}
+// Stormy-news band: 5th–95th percentile of past t-step moves, taken only from starts in the
+// most turbulent 20% of periods (trailing 20-step volatility of log returns).
+function stormBand(v, h, w = 20, top = 0.8) {
+  const lr = v.slice(1).map((x, i) => Math.log(x / v[i])), vol = [];
+  for (let i = w; i < v.length; i++) { const seg = lr.slice(i - w, i), m = seg.reduce((a, b) => a + b, 0) / w; vol[i] = Math.sqrt(seg.reduce((a, b) => a + (b - m) ** 2, 0) / w); }
+  const sorted = vol.filter(Number.isFinite).sort((a, b) => a - b), thr = sorted[Math.floor(top * (sorted.length - 1))];
+  const starts = []; for (let i = w; i < v.length - h; i++) if (vol[i] >= thr) starts.push(i);
+  const q = (arr, p) => { const a = [...arr].sort((x, y) => x - y), k = (a.length - 1) * p, f = Math.floor(k); return a[f] + (a[Math.min(f + 1, a.length - 1)] - a[f]) * (k - f); };
+  const last = v.at(-1), lo = [], hi = [];
+  for (let t = 1; t <= h; t++) { const r = starts.map(i => Math.log(v[i + t] / v[i])); lo.push(last * Math.exp(q(r, 0.05))); hi.push(last * Math.exp(q(r, 0.95))); }
+  return { lo, hi };
+}
+
 // ---- current affairs: MLB odds + market cards ----
 const short = t => t.split(" ").at(-1);
 function gauss(r) { let u = 0, v = 0; while (!u) u = r(); while (!v) v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
@@ -349,14 +401,19 @@ function simulatePlayoffs(mlb, strength, N = 100000) {
   return { pennant, title };
 }
 let mlbEloOnly = null;
+function teamNews(t) {
+  const n = current?.news?.topics?.[t]; if (!n) return "—";
+  const tip = `${n.reason || `normal: ${toneTxt(n.tone)} vs usual ${toneTxt(n.baseline)}`}\n` + n.headlines.slice(0, 3).map(h => "• " + h.title).join("\n");
+  return `<span class="pill${n.alert ? " alert" : ""}" title="${esc(tip)}">${n.alert ? "⚠ " : ""}${toneTxt(n.tone)}</span>`;
+}
 function renderMlb(withTfm = null, bands = null) {
   const mlb = current.mlb, teams = Object.keys(mlb.teams);
   const base = mlbEloOnly ??= simulatePlayoffs(mlb, Object.fromEntries(teams.map(t => [t, [mlb.teams[t].elo, 0]])));
   const rows = teams.sort((a, b) => ((withTfm ?? base).title[b] || 0) - ((withTfm ?? base).title[a] || 0));
   const pct = x => ((x || 0) * 100).toFixed(1) + "%";
-  $("mlb-table").innerHTML = `<tr><th>Team</th><th>${mlb.season} record</th><th>Strength (Elo)</th>${bands ? "<th>TimesFM next-10 band</th>" : ""}<th>Wins league series</th><th>Wins World Series<br><span class="note">Elo only</span></th>${withTfm ? '<th>Wins World Series<br><span class="note">+ TimesFM band</span></th>' : ""}</tr>` +
+  $("mlb-table").innerHTML = `<tr><th>Team</th><th>${mlb.season} record</th><th>Strength (Elo)</th>${bands ? "<th>TimesFM next-10 band</th>" : ""}<th>News tone<br><span class="note">context only</span></th><th>Wins league series</th><th>Wins World Series<br><span class="note">Elo only</span></th>${withTfm ? '<th>Wins World Series<br><span class="note">+ TimesFM band</span></th>' : ""}</tr>` +
     rows.map(t => { const T = mlb.teams[t], top = withTfm ?? base;
-      return `<tr><td>${esc(t)}</td><td>${T.record[0]}–${T.record[1]}</td><td>${Math.round(T.elo)}</td>${bands ? `<td>${Math.round(bands[t][0])}–${Math.round(bands[t][1])}</td>` : ""}<td>${pct(top.pennant[t])}</td>` +
+      return `<tr><td>${esc(t)}</td><td>${T.record[0]}–${T.record[1]}</td><td>${Math.round(T.elo)}</td>${bands ? `<td>${Math.round(bands[t][0])}–${Math.round(bands[t][1])}</td>` : ""}<td>${teamNews(t)}</td><td>${pct(top.pennant[t])}</td>` +
         `<td${withTfm ? "" : ' class="big"'}>${pct(base.title[t])}${withTfm ? "" : `<span class="bar" style="width:${Math.round((base.title[t] || 0) * 120)}px"></span>`}</td>` +
         (withTfm ? `<td class="big">${pct(withTfm.title[t])}<span class="bar" style="width:${Math.round((withTfm.title[t] || 0) * 120)}px"></span></td>` : "") + "</tr>"; }).join("");
 }
@@ -378,6 +435,7 @@ function renderCurrent() {
     const div = document.createElement("div"); div.className = "card";
     const last = e.values.at(-1), prev = e.values.at(-31), ch = (last / prev - 1) * 100;
     div.innerHTML = `<b>${esc(e.label)}</b><p>${esc(e.blurb)}</p><p style="color:var(--fg)"><b>${last.toLocaleString("en-US", { maximumFractionDigits: 2 })}</b> ${esc(e.unit)} on ${d(e.dates.at(-1))} <span class="${ch >= 0 ? "" : "warn"}">(${ch >= 0 ? "+" : ""}${ch.toFixed(1)}% since ${d(e.dates.at(-31))})</span></p>`;
+    div.insertAdjacentHTML("beforeend", newsBlock(newsTopic(e.id), "News:"));
     const b = document.createElement("button"); b.className = "small"; b.textContent = "Forecast next 30 days";
     b.onclick = () => { $("sample").value = "ex:" + e.id; onSample(); showTab("forecast"); scrollTo(0, 0); if (model) $("run").click(); else log(`selected ${e.label}: click Load model, then Forecast`); };
     div.append(b); $("markets").append(div);
@@ -445,7 +503,7 @@ async function getSeries(ctx, h) {
   const hold = $("holdout").checked && all.length > h + 8;
   if ($("holdout").checked && !hold) log(`series has only ${all.length} points, so nothing is held back`);
   const known = hold ? all.slice(0, -h) : all, hist = known.slice(-ctx);
-  return { hist, truth: hold ? all.slice(-h) : null, meta, offset: known.length - hist.length };
+  return { hist, known, truth: hold ? all.slice(-h) : null, meta, offset: known.length - hist.length };
 }
 
 $("run").onclick = async () => {
@@ -454,7 +512,8 @@ $("run").onclick = async () => {
   $("run").disabled = true;
   const r = await model.forecast(s.hist, h, { maxContext: ctx });
   $("run").disabled = false;
-  draw(s, r); lastDraw = [s, r];
+  s.storm = s.meta && !$("stormwrap").classList.contains("hidden") && $("storm").checked ? stormBand(s.known, h) : null;
+  draw(s, r); lastDraw = [s, r]; $("legend-storm").classList.toggle("hidden", !s.storm);
   const ok = s.truth?.map((v, i) => [v, i]).filter(([v]) => Number.isFinite(v)) ?? [];
   const last = s.hist.findLast(Number.isFinite);
   const mae = ok.length ? ok.reduce((a, [v, i]) => a + Math.abs(v - r.point[i]), 0) / ok.length : null;
@@ -463,6 +522,8 @@ $("run").onclick = async () => {
   const unit = s.meta ? ` <span style="color:var(--muted)">${esc(s.meta.unit)}</span>` : "";
   $("stats").innerHTML = `<div><b>${r.ms.toFixed(0)} ms</b>inference (${r.passes} pass${r.passes > 1 ? "es" : ""})</div>` +
     `<div><b>${fmt(r.point.at(-1))}</b>forecast at step ${h}${unit}</div>` +
+    (s.storm ? `<div><b style="color:var(--storm)">${fmt(s.storm.lo.at(-1))} – ${fmt(s.storm.hi.at(-1))}</b>stormy-news band at step ${h}</div>` +
+      (ok.length ? `<div><b style="color:var(--storm)">${Math.round(100 * ok.filter(([v, i]) => v >= s.storm.lo[i] && v <= s.storm.hi[i]).length / ok.length)}%</b>of actuals inside the stormy band</div>` : "") : "") +
     (mae != null ? `<div><b>${fmt(mae)}</b>MAE vs actual</div><div><b>${fmt(naive)}</b>MAE of "repeat last value"</div>` +
       `<div><b class="${mae < naive ? "" : "warn"}">${mae < naive ? ((1 - mae / naive) * 100).toFixed(0) + "% better" : "no better"}</b>than the naive guess</div>` +
       (mae < naive ? "" : `<div style="flex-basis:100%;color:var(--muted)">That's normal for prices, epidemics and other series driven by outside shocks: "no change" is a hard baseline to beat. Try a shorter horizon, or look at whether the actual line stayed inside the shaded band.</div>`) : "");
@@ -486,17 +547,18 @@ $("selftest").onclick = async () => {
 
 addEventListener("resize", () => lastDraw && draw(...lastDraw));
 
-function draw({ hist, truth, meta, offset }, r) {
+function draw({ hist, truth, meta, offset, storm }, r) {
   const c = $("chart"), dpr = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight, B = meta ? 18 : 0;
   c.width = W * dpr; c.height = H * dpr; const g = c.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, W, H);
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const keep = Math.max(3 * r.point.length, 128), show = hist.slice(-keep), skip = hist.length - show.length, n = show.length + r.point.length;
-  const vals = [...show, ...r.quantiles.flatMap(q => [q[1], q[9]]), ...(truth || [])].filter(Number.isFinite);
+  const vals = [...show, ...r.quantiles.flatMap(q => [q[1], q[9]]), ...(truth || []), ...(storm ? [...storm.lo, ...storm.hi] : [])].filter(Number.isFinite);
   let lo = Math.min(...vals), hi = Math.max(...vals); const pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad;
   const X = i => 8 + (i / (n - 1)) * (W - 16), Y = v => H - B - 8 - ((v - lo) / (hi - lo)) * (H - B - 16);
   const line = (arr, off, col, w) => { g.beginPath(); let pen = false; arr.forEach((v, i) => { if (!Number.isFinite(v)) { pen = false; return; } pen ? g.lineTo(X(i + off), Y(v)) : g.moveTo(X(i + off), Y(v)); pen = true; }); g.strokeStyle = col; g.lineWidth = w; g.stroke(); };
   g.beginPath(); r.quantiles.forEach((q, i) => g.lineTo(X(show.length + i), Y(q[9]))); for (let i = r.quantiles.length - 1; i >= 0; i--) g.lineTo(X(show.length + i), Y(r.quantiles[i][1])); g.fillStyle = css("--band"); g.fill();
   g.strokeStyle = css("--line"); g.setLineDash([4, 4]); g.beginPath(); g.moveTo(X(show.length), 0); g.lineTo(X(show.length), H - B); g.stroke(); g.setLineDash([]);
+  if (storm) { g.setLineDash([5, 4]); line(storm.lo, show.length, css("--storm"), 1.5); line(storm.hi, show.length, css("--storm"), 1.5); g.setLineDash([]); }
   line(show, 0, css("--muted"), 1.2); line([...r.point], show.length, css("--accent"), 2); if (truth) line(truth, show.length, css("--truth"), 1);
   // y range and, for real examples, dates under the chart
   g.fillStyle = css("--muted"); g.font = "11px system-ui,sans-serif"; g.textAlign = "left";

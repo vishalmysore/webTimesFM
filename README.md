@@ -17,6 +17,7 @@ You can choose the 8-bit model (261 MB, almost identical to full precision, the 
 - `examples.json`: 7 real-world series: COVID-19 cases (USA), world extreme poverty, wheat and maize prices, US unemployment, CO₂ at Mauna Loa, sunspots
 - `scripts/build_examples.py`: rebuilds `examples.json` from the public sources (World Bank, FRED/IMF, NOAA, SILSO, JHU)
 - `current.json`: data for the **Current affairs** tab: Brent and WTI oil and Bitcoin prices (FRED), and MLB team-strength histories with the live playoff series score (MLB Stats API)
+- `scripts/build_news.py`: adds a daily **news tone** for oil, Bitcoin and each playoff team (up to 100 Google News headlines a day, scored with the VADER sentiment model). Unusual tone raises a warning and a stormy-news band on the forecast chart; it never moves the forecast itself. `news_history.json` keeps the daily tones.
 - `scripts/build_current.py`: refreshes `current.json`. A GitHub Action (`.github/workflows/current.yml`) runs it every day at 12:30 UTC and commits the result, so the tab stays current. You can also run it by hand: `python scripts/build_current.py current.json`
 
 The **Current affairs** tab estimates World Series odds (Elo ratings, TimesFM strength forecasts and 100,000 simulated playoffs, all in the browser) and forecasts oil and Bitcoin for the next 30 days, with caveats and sources.
