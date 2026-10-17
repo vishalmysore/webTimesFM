@@ -44,6 +44,8 @@
   table.odds td.big { font-weight:700; font-size:16px } .bar { display:inline-block; height:8px; background:var(--accent); border-radius:4px; vertical-align:middle; margin-left:6px }
   .tablewrap { overflow-x:auto }
   .note { font-size:13px; color:var(--muted) }
+  footer.disclaimer { margin-top:28px; padding-top:14px; border-top:1px solid var(--line); font-size:12.5px; color:var(--muted); line-height:1.6 }
+  .notice { border-left:3px solid var(--storm); background:var(--bg); padding:10px 12px; border-radius:0 6px 6px 0; font-size:13.5px }
   .pill { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; border:1px solid var(--line); white-space:nowrap }
   .pill.alert { border-color:var(--storm); color:var(--storm); font-weight:600 }
   .news { font-size:13px; margin:8px 0; padding:8px 10px; border-radius:6px; background:var(--bg) }
@@ -110,7 +112,7 @@
   <div class="card">
     <h2>Forecasting this week's news</h2>
     <p>Two kinds of current-affairs forecast, both running in your browser on the same model. <span id="cur-asof" class="note"></span></p>
-    <p class="note"><b>Not betting or financial advice.</b> These are demonstrations of what a pattern-based model can and can't see.</p>
+    <div class="notice"><b>Not financial, investment or betting advice.</b> These forecasts and odds are educational demonstrations of what a pattern-based model can and can't see, and they can be wrong. Prices are close to a random walk, and the baseball odds ignore pitchers, injuries and much else. Data is automatic, from third-party sources, and may be delayed. News tone is scored by a simple sentiment model and isn't an editorial judgement. Not affiliated with Google, MLB or any team. <a href="https://github.com/vishalmysore/webTimesFM/blob/main/docs/what-is-timesfm.md#disclaimer" target="_blank" rel="noopener">Read the full disclaimer</a>.</div>
   </div>
 
   <div class="card">
@@ -253,6 +255,9 @@ NA
     <p style="font-size:14px;color:var(--muted)">If a download has many countries or products in one file, filter to <b>one</b> of them before using a column.</p>
   </div>
   </section>
+  <footer class="disclaimer">
+    <b>Disclaimer.</b> webTimesFM is an independent, unofficial community project. TimesFM is created by Google Research (<a href="https://arxiv.org/abs/2310.10688" target="_blank" rel="noopener">paper</a> · <a href="https://github.com/google-research/timesfm" target="_blank" rel="noopener">code</a> · <a href="https://huggingface.co/google/timesfm-2.5-200m-pytorch" target="_blank" rel="noopener">weights</a>); this site is a conversion of its Apache-2.0 weights and isn't affiliated with or endorsed by Google. Forecasts are educational demonstrations, <b>not financial, investment or betting advice</b>, and can be wrong. Data comes from third-party public sources and may be delayed or revised. Everything runs in your browser: numbers you enter aren't sent to any server. Provided as is, with no warranty. <a href="https://github.com/vishalmysore/webTimesFM/blob/main/docs/what-is-timesfm.md#disclaimer" target="_blank" rel="noopener">Full disclaimer</a> · <a href="https://github.com/vishalmysore/webTimesFM" target="_blank" rel="noopener">Source code</a>
+  </footer>
 </main>
 
 <script type="module">
