@@ -182,20 +182,25 @@ Pick **Compare both** in the Model menu and both models load together (414 MB at
 
 **The test.** For each of 10 real series, we hid the most recent points, asked both models to forecast them, and measured the average miss (MAE, lower is better). The baseline is "no change": repeat the last known value.
 
-| Series (points hidden) | "No change" | TimesFM 2.5 | Chronos-2 | Closest |
-|---|---|---|---|---|
-| CO₂ at Mauna Loa, ppm (60 months) | 10.24 | **0.56** | 0.97 | TimesFM |
-| Sunspots, monthly mean (120 months) | 50.1 | **42.5** | 44.1 | TimesFM |
-| Bitcoin, US$ (30 days) | 7,153 | **6,949** | 7,272 | TimesFM |
-| Wheat price, US$/t (24 months) | 15.07 | 21.84 | **13.14** | Chronos-2 |
-| Maize price, US$/t (24 months) | 25.01 | 29.46 | **16.30** | Chronos-2 |
-| World extreme poverty, % (5 years) | **0.46** | 1.88 | 0.95 | No change |
-| US unemployment, % (24 months) | **0.100** | 0.126 | 0.280 | No change |
-| COVID-19 cases, USA, 7-day avg (60 days) | **28,940** | 35,320 | 42,390 | No change |
-| Brent oil, US$/barrel (30 days) | **22.0** | 22.2 | 24.7 | No change |
-| WTI oil, US$/barrel (30 days) | **6.79** | 7.91 | 8.46 | No change |
+**How much was hidden.** Each series hides a different amount, shown in brackets, matched to how often it's measured and how long it is: 30 days for daily prices, 60 days for daily COVID cases, 24 months for monthly economic data, 60 months for CO₂ (to test the yearly cycle), 120 months for sunspots (one ~11-year cycle) and 5 years for the short yearly poverty series. Within a row, both models and "no change" faced exactly the same test.
 
-*Measured 18 October 2026. Oil and Bitcoin data run to 14 and 16 October 2026 and are refreshed daily, so their numbers change.*
+**How to read it.** The MAE columns are in each series' own units (ppm, dollars, %, cases), so compare **within a row**, not across rows. The last two columns divide each model's miss by the "no change" miss, so all rows share one scale: **below 1.00 = better than "no change"**, above 1.00 = worse. For example, 0.05 means 95% smaller misses, and 2.07 means about twice as large.
+
+| Series (points hidden) | "No change" MAE | TimesFM 2.5 MAE | Chronos-2 MAE | Closest | TimesFM ÷ no change | Chronos-2 ÷ no change |
+|---|---|---|---|---|---|---|
+| CO₂ at Mauna Loa, ppm (60 months) | 10.24 | **0.56** | 0.97 | TimesFM | **0.05** | 0.09 |
+| Sunspots, monthly mean (120 months) | 50.1 | **42.5** | 44.1 | TimesFM | **0.85** | 0.88 |
+| Bitcoin, US$ (30 days) | 7,153 | **6,949** | 7,272 | TimesFM | **0.97** | 1.02 |
+| Wheat price, US$/t (24 months) | 15.07 | 21.84 | **13.14** | Chronos-2 | 1.45 | **0.87** |
+| Maize price, US$/t (24 months) | 25.01 | 29.46 | **16.30** | Chronos-2 | 1.18 | **0.65** |
+| World extreme poverty, % (5 years) | **0.46** | 1.88 | 0.95 | No change | 4.09 | 2.07 |
+| US unemployment, % (24 months) | **0.100** | 0.126 | 0.280 | No change | 1.26 | 2.80 |
+| COVID-19 cases, USA, 7-day avg (60 days) | **28,940** | 35,320 | 42,390 | No change | 1.22 | 1.46 |
+| Brent oil, US$/barrel (30 days) | **22.0** | 22.2 | 24.7 | No change | 1.01 | 1.12 |
+| WTI oil, US$/barrel (30 days) | **6.79** | 7.91 | 8.46 | No change | 1.16 | 1.25 |
+| **Average across all 10** (geometric mean of the ratios) | | | | | **0.95** | **0.95** |
+
+*Measured 18 October 2026. Oil and Bitcoin data run to 14 and 16 October 2026 and are refreshed daily, so their numbers change. The average uses a geometric mean, the usual way to average ratios, so a 2× better and a 2× worse result cancel out.*
 
 **Three examples from the table, one for each kind of result.** In each chart, the blue line and shaded band are TimesFM 2.5, the green line and dotted lines are Chronos-2, and the orange line is what really happened.
 
@@ -213,7 +218,7 @@ Pick **Compare both** in the Model menu and both models load together (414 MB at
 
 **What it shows**
 
-- **No overall winner.** Head to head, TimesFM was closer on 7 series and Chronos-2 on 3. But TimesFM beat "no change" on 3 series and Chronos-2 on 4.
+- **No overall winner.** Head to head, TimesFM was closer on 7 series and Chronos-2 on 3. But TimesFM beat "no change" on 3 series and Chronos-2 on 4, and once every row is put on the same scale, both average **0.95**: about 5% better than "no change", a dead heat. That small edge is carried by CO₂: leave it out and both models do worse than "no change" on average (1.30 for TimesFM, 1.22 for Chronos-2).
 - **TimesFM was better on smooth, regular patterns.** On CO₂ (steady rise plus a yearly cycle) and sunspots (an 11-year cycle) it was the clear winner.
 - **Chronos-2 was better on the crop prices.** On wheat and maize it beat both TimesFM and "no change" by a wide margin.
 - **"No change" won half the tests.** Oil, unemployment, COVID and poverty were all driven by events that no history could predict. Neither model can see those coming.
