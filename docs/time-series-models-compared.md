@@ -176,6 +176,10 @@ Benchmarks rank these two models close together. We wanted to see how they do on
 
 **The setup.** Both models run as 8-bit ONNX files through ONNX Runtime Web: TimesFM 2.5 (261 MB) and Chronos-2 (153 MB, our [conversion](https://huggingface.co/VishalMysore/chronos-2-onnx-web)). Before trusting the comparison, we checked the browser version of Chronos-2 against Amazon's own PyTorch code. At full precision it matched to within 0.0001 of a standard deviation, and the 8-bit median forecast stayed within 0.04 of a typical step of full precision. So the differences below come from the models, not from the conversion.
 
+Pick **Compare both** in the Model menu and both models load together (414 MB at 8-bit, cached after the first visit):
+
+![webTimesFM model picker set to Compare both: TimesFM 2.5 and Chronos-2 on WebGPU](images/cmp-model-picker.png)
+
 **The test.** For each of 10 real series, we hid the most recent points, asked both models to forecast them, and measured the average miss (MAE, lower is better). The baseline is "no change": repeat the last known value.
 
 | Series (points hidden) | "No change" | TimesFM 2.5 | Chronos-2 | Closest |
@@ -192,6 +196,20 @@ Benchmarks rank these two models close together. We wanted to see how they do on
 | WTI oil, US$/barrel (30 days) | **6.79** | 7.91 | 8.46 | No change |
 
 *Measured 18 October 2026. Oil and Bitcoin data run to 14 and 16 October 2026 and are refreshed daily, so their numbers change.*
+
+**Three examples from the table, one for each kind of result.** In each chart, the blue line and shaded band are TimesFM 2.5, the green line and dotted lines are Chronos-2, and the orange line is what really happened.
+
+**TimesFM wins: CO₂ at Mauna Loa.** Both models catch the yearly cycle almost perfectly, and TimesFM is a little closer (MAE 0.56 vs 0.97 ppm). Both are about 90–95% better than "no change".
+
+![Compare both on CO2: TimesFM 2.5 and Chronos-2 both track the yearly cycle; TimesFM is slightly closer](images/cmp-co2.png)
+
+**Chronos-2 wins: maize price.** Chronos-2 forecast the rebound (MAE 16.3), while TimesFM expected prices to keep sliding (29.5), worse even than "no change" (25.0).
+
+![Compare both on maize: Chronos-2 forecasts the rebound, TimesFM expects a decline](images/cmp-maize.png)
+
+**"No change" wins: COVID-19 cases.** Cases kept falling in early 2023. Both models expected them to level off or rise, so the simple baseline beat both. Neither model can see the end of a wave coming.
+
+![Compare both on COVID-19 cases: the actual decline beats both models' forecasts](images/cmp-covid.png)
 
 **What it shows**
 
