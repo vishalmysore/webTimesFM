@@ -23,17 +23,19 @@ canonical_url: https://github.com/vishalmysore/webTimesFM/blob/main/docs/time-se
 5. [Which is most accurate?](#which-is-most-accurate)
 6. [Licences: the detail that decides for most teams](#licences-the-detail-that-decides-for-most-teams)
 7. [Which model should you use?](#which-model-should-you-use)
-8. [What we learned running TimesFM ourselves](#what-we-learned-running-timesfm-ourselves)
-9. [FAQ](#faq)
-10. [Sources](#sources)
-11. [Disclaimer](#disclaimer)
+8. [TimesFM 2.5 vs Chronos-2, side by side in the browser](#timesfm-25-vs-chronos-2-side-by-side-in-the-browser)
+9. [What we learned running TimesFM ourselves](#what-we-learned-running-timesfm-ourselves)
+10. [FAQ](#faq)
+11. [Sources](#sources)
+12. [Disclaimer](#disclaimer)
 
 ---
 
 ## The short answer
 
 - **Best all-rounder with an open licence:** **Amazon Chronos-2** (120M, Apache-2.0). It handles single series, many related series and extra inputs (covariates) in one model.
-- **Best for long histories and simple deployment:** **Google TimesFM 2.5** (200M, Apache-2.0). It reads up to 16,384 past points, and it's the model behind [webTimesFM](https://vishalmysore.github.io/webTimesFM/).
+- **Best for long histories and simple deployment:** **Google TimesFM 2.5** (200M, Apache-2.0). It reads up to 16,384 past points, and it's the first model behind [webTimesFM](https://vishalmysore.github.io/webTimesFM/).
+- **Both run in a web browser.** webTimesFM runs TimesFM 2.5 and Chronos-2 side by side, so you can [test them on the same data](#timesfm-25-vs-chronos-2-side-by-side-in-the-browser). On our 10 real series neither won outright, and "no change" beat both on half of them.
 - **Smallest and fastest:** **IBM Tiny Time Mixers** (under 1M parameters, Apache-2.0). It runs comfortably on a CPU.
 - **Strong but restricted:** **TimesFM 3.0**, **Moirai** and **TiRex** all perform well, but their weights are non-commercial or carry custom licence terms.
 - **No machine learning team at all?** **Nixtla TimeGPT** is a paid API: send numbers, get forecasts back.
@@ -161,10 +163,45 @@ That's why many production teams in 2026 run **Chronos-2** or **TimesFM 2.5**: s
 | Related series and known future inputs (prices, holidays, weather) | **Chronos-2**, or TimesFM 2.5 + XReg | Native covariates |
 | Server and app metrics (observability) | **Toto** | Built and benchmarked for it |
 | Laptop, edge device or CPU only | **Tiny Time Mixers** or **TiRex** | Under 1M and 35M parameters |
-| In a web browser, no server | **TimesFM 2.5** (ONNX) | See [webTimesFM](https://vishalmysore.github.io/webTimesFM/) |
+| In a web browser, no server | **TimesFM 2.5** or **Chronos-2** (ONNX) | Both run in [webTimesFM](https://vishalmysore.github.io/webTimesFM/), with a "Compare both" mode |
 | No ML team, want an API | **TimeGPT** | Managed service |
 | Want many possible futures, not just quantiles | **Sundial** | Generative flow-matching |
 | Research only, want the newest | **TimesFM 3.0**, **Moirai 2.0** | Top results, non-commercial weights |
+
+---
+
+## TimesFM 2.5 vs Chronos-2, side by side in the browser
+
+Benchmarks rank these two models close together. We wanted to see how they do on everyday data, so [webTimesFM](https://vishalmysore.github.io/webTimesFM/) now runs **both** in the browser, and its **Compare both** mode draws the two forecasts on one chart.
+
+**The setup.** Both models run as 8-bit ONNX files through ONNX Runtime Web: TimesFM 2.5 (261 MB) and Chronos-2 (153 MB, our [conversion](https://huggingface.co/VishalMysore/chronos-2-onnx-web)). Before trusting the comparison, we checked the browser version of Chronos-2 against Amazon's own PyTorch code. At full precision it matched to within 0.0001 of a standard deviation, and the 8-bit median forecast stayed within 0.04 of a typical step of full precision. So the differences below come from the models, not from the conversion.
+
+**The test.** For each of 10 real series, we hid the most recent points, asked both models to forecast them, and measured the average miss (MAE, lower is better). The baseline is "no change": repeat the last known value.
+
+| Series (points hidden) | "No change" | TimesFM 2.5 | Chronos-2 | Closest |
+|---|---|---|---|---|
+| CO₂ at Mauna Loa, ppm (60 months) | 10.24 | **0.56** | 0.97 | TimesFM |
+| Sunspots, monthly mean (120 months) | 50.1 | **42.5** | 44.1 | TimesFM |
+| Bitcoin, US$ (30 days) | 7,153 | **6,949** | 7,272 | TimesFM |
+| Wheat price, US$/t (24 months) | 15.07 | 21.84 | **13.14** | Chronos-2 |
+| Maize price, US$/t (24 months) | 25.01 | 29.46 | **16.30** | Chronos-2 |
+| World extreme poverty, % (5 years) | **0.46** | 1.88 | 0.95 | No change |
+| US unemployment, % (24 months) | **0.100** | 0.126 | 0.280 | No change |
+| COVID-19 cases, USA, 7-day avg (60 days) | **28,940** | 35,320 | 42,390 | No change |
+| Brent oil, US$/barrel (30 days) | **22.0** | 22.2 | 24.7 | No change |
+| WTI oil, US$/barrel (30 days) | **6.79** | 7.91 | 8.46 | No change |
+
+*Measured 18 October 2026. Oil and Bitcoin data run to 14 and 16 October 2026 and are refreshed daily, so their numbers change.*
+
+**What it shows**
+
+- **No overall winner.** Head to head, TimesFM was closer on 7 series and Chronos-2 on 3. But TimesFM beat "no change" on 3 series and Chronos-2 on 4.
+- **TimesFM was better on smooth, regular patterns.** On CO₂ (steady rise plus a yearly cycle) and sunspots (an 11-year cycle) it was the clear winner.
+- **Chronos-2 was better on the crop prices.** On wheat and maize it beat both TimesFM and "no change" by a wide margin.
+- **"No change" won half the tests.** Oil, unemployment, COVID and poverty were all driven by events that no history could predict. Neither model can see those coming.
+- **Chronos-2 is lighter.** It's a smaller download (153 MB vs 261 MB) and was a little faster: 55–85 ms per forecast on WebGPU against 90–135 ms for TimesFM, and about 1 s against 2 s on a CPU.
+
+Ten series with one hold-out period each is a small test, not a benchmark. Treat it as an example of how to compare models on your own data, not as a ranking. You can rerun every row in the browser: pick a series, choose **Compare both**, and keep **Hold back** ticked.
 
 ---
 
@@ -194,7 +231,7 @@ Whichever model you choose, **test it against "no change"**. For prices, it's ve
 There's no single best. Chronos-2, TimesFM (2.5 and 3.0) and TiRex trade the top spots depending on the benchmark and metric. For an open, commercial-friendly licence, Chronos-2 and TimesFM 2.5 are the usual picks.
 
 ### TimesFM vs Chronos: which is better?
-They're close. Chronos-2 is smaller (120M vs 200M), natively handles multivariate data and covariates, and ranks higher on some probabilistic benchmarks. TimesFM 2.5 reads longer histories (16k vs 8k points) and ranks first on some point-accuracy measures. Test both on your data.
+They're close. Chronos-2 is smaller (120M vs 200M), natively handles multivariate data and covariates, and ranks higher on some probabilistic benchmarks. TimesFM 2.5 reads longer histories (16k vs 8k points) and ranks first on some point-accuracy measures. On our [10 real series](#timesfm-25-vs-chronos-2-side-by-side-in-the-browser), TimesFM was closer on 7 and Chronos-2 on 3, but each beat "no change" on only 3 or 4. Test both on your data.
 
 ### Is TimeGPT open source?
 No. TimeGPT is a commercial API from Nixtla. Open-weights alternatives include TimesFM 2.5, Chronos-2, Toto and Sundial (all Apache-2.0).
@@ -206,7 +243,7 @@ Not the published weights. Salesforce releases Moirai under CC-BY-NC-4.0, which 
 Not entirely. They remove most of the setup work and often win on large or messy collections of series. On a single clean series, a well-tuned classic model can still match them. Always compare.
 
 ### Do I need a GPU?
-Not for forecasting. Small models like TTM and TiRex run on a CPU, and TimesFM 2.5 even runs in a web browser. GPUs help with large batches or fine-tuning.
+Not for forecasting. Small models like TTM and TiRex run on a CPU, and TimesFM 2.5 and Chronos-2 even run in a web browser. GPUs help with large batches or fine-tuning.
 
 ### Can these models use news or other text?
 No. They read numbers only. To use news, convert it into numbers first, for example a daily sentiment score, and feed it in as a covariate or use it as a warning signal. [webTimesFM](https://vishalmysore.github.io/webTimesFM/#current) shows one way to do this.
@@ -238,14 +275,16 @@ No. They read numbers only. To use news, convert it into numbers first, for exam
 
 **Please read before using the forecasts on this site or in this article.**
 
-### Not affiliated with Google
+### Not affiliated with Google or Amazon
 - **TimesFM** is created by **Google Research**: [paper](https://arxiv.org/abs/2310.10688), [code](https://github.com/google-research/timesfm), [TimesFM 2.5 weights](https://huggingface.co/google/timesfm-2.5-200m-pytorch). "Google" and "TimesFM" are names and trademarks of Google LLC.
-- **webTimesFM** is an **independent, unofficial community project**. It is not made, sponsored, reviewed or endorsed by Google, and nothing here speaks for Google.
+- **Chronos-2** is created by **Amazon**: [paper](https://arxiv.org/abs/2510.15821), [code](https://github.com/amazon-science/chronos-forecasting), [weights](https://huggingface.co/amazon/chronos-2).
+- **webTimesFM** is an **independent, unofficial community project**. It is not made, sponsored, reviewed or endorsed by Google or Amazon, and nothing here speaks for them.
 
 ### About the browser model
 - The model running here is a **conversion** of Google's TimesFM 2.5 weights to ONNX, compressed to 8-bit and 4-bit. The weights' values come only from Google's release; they were not retrained or fine-tuned.
 - Compression and the browser re-implementation of the pre- and post-processing mean its forecasts **can differ slightly** from Google's official code. The 4-bit model differs more, especially on short series. Use the **Run self-test vs PyTorch** button to check on your own machine.
 - TimesFM 2.5 code and weights are licensed under **Apache-2.0** and are provided **"as is", without warranties or conditions of any kind**. The changes made for this conversion are listed on the [model card](https://huggingface.co/VishalMysore/timesfm-2.5-200m-onnx-web). TimesFM 3.0, which has a separate non-commercial licence, is **not** used or included.
+- **Chronos-2** runs the same way: an ONNX conversion of Amazon's Apache-2.0 weights, 8-bit or 4-bit, not retrained. Its changes and accuracy checks are on its own [model card](https://huggingface.co/VishalMysore/chronos-2-onnx-web).
 
 ### Not financial, investment or betting advice
 - The oil, Bitcoin and other price forecasts are **educational demonstrations**, not recommendations to buy, sell or hold anything. Prices behave much like a random walk, and in our own tests the model roughly ties a simple "no change" guess.

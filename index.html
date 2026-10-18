@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TimesFM Web</title>
 <style>
-  :root { --bg:#fafaf7; --fg:#1d1d1b; --muted:#6b6b66; --line:#e3e2dc; --accent:#2f6fde; --band:rgba(47,111,222,.16); --truth:#c2410c; --storm:#7c3aed; --card:#fff; --code:#f1f0ea; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#141413; --fg:#ecebe6; --muted:#9d9c95; --line:#2c2c29; --accent:#7aa7ff; --band:rgba(122,167,255,.2); --truth:#fb923c; --storm:#c4b5fd; --card:#1c1c1a; --code:#252522; } }
+  :root { --bg:#fafaf7; --fg:#1d1d1b; --muted:#6b6b66; --line:#e3e2dc; --accent:#2f6fde; --band:rgba(47,111,222,.16); --truth:#c2410c; --storm:#7c3aed; --c2:#15803d; --card:#fff; --code:#f1f0ea; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#141413; --fg:#ecebe6; --muted:#9d9c95; --line:#2c2c29; --accent:#7aa7ff; --band:rgba(122,167,255,.2); --truth:#fb923c; --storm:#c4b5fd; --c2:#4ade80; --card:#1c1c1a; --code:#252522; } }
   * { box-sizing:border-box }
   body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; }
   main { max-width:1000px; margin:0 auto; padding:24px 16px 60px; }
@@ -54,8 +54,8 @@
 </head>
 <body>
 <main>
-  <h1>TimesFM 2.5 in the browser</h1>
-  <p class="sub">Google's 200M-parameter time-series foundation model, running locally on WebGPU or WASM through ONNX Runtime Web. No server, no data leaves the page.</p>
+  <h1>TimesFM 2.5 and Chronos-2 in the browser</h1>
+  <p class="sub">Google's TimesFM 2.5 (200M) and Amazon's Chronos-2 (120M), two time-series foundation models, running locally on WebGPU or WASM through ONNX Runtime Web. Run either one, or both side by side. No server, no data leaves the page.</p>
 
   <div class="tabs" role="tablist">
     <button role="tab" id="tab-forecast" aria-selected="true">Forecast</button>
@@ -66,7 +66,8 @@
   <section id="pane-forecast">
   <div class="card">
     <div class="row">
-      <label title="8-bit is almost identical to Google's full-precision model. 4-bit downloads faster but is less accurate on short series (under ~64 points).">Model<select id="model"><option value="timesfm25_q8.onnx">8-bit (261 MB, most accurate)</option><option value="timesfm25_q4.onnx">4-bit (146 MB, smaller, less accurate on short series)</option></select></label>
+      <label>Model<select id="family"><option value="timesfm">TimesFM 2.5 (Google)</option><option value="chronos">Chronos-2 (Amazon)</option><option value="both">Compare both</option></select></label>
+      <label title="8-bit is almost identical to the full-precision models. 4-bit downloads faster but is less accurate on short series (under ~64 points).">Precision<select id="model"><option value="q8">8-bit (most accurate)</option><option value="q4">4-bit (smaller, less accurate on short series)</option></select></label>
       <label>Backend<select id="backend"><option value="webgpu">WebGPU</option><option value="wasm">WASM (CPU)</option></select></label>
       <button id="load">Load model</button>
       <button id="selftest" class="ghost" disabled>Run self-test vs PyTorch</button>
@@ -101,7 +102,7 @@
 
   <div class="card">
     <canvas id="chart"></canvas>
-    <div class="legend"><span><i class="sw" style="background:var(--muted)"></i>history</span><span><i class="sw" style="background:var(--accent)"></i>median forecast</span><span><i class="sw" style="background:var(--band);height:10px"></i>q10–q90 (80% of outcomes)</span><span><i class="sw" style="background:var(--truth)"></i>actual (held-back points)</span><span id="legend-storm" class="hidden"><i class="sw" style="background:var(--storm)"></i>stormy-news band (5–95% of past turbulent periods)</span></div>
+    <div class="legend"><span><i class="sw" style="background:var(--muted)"></i>history</span><span><i class="sw" style="background:var(--accent)"></i><span id="legend-name">median forecast</span></span><span id="legend-c2" class="hidden"><i class="sw" style="background:var(--c2)"></i>Chronos-2 median (dotted: its q10–q90)</span><span><i class="sw" style="background:var(--band);height:10px"></i>q10–q90 (80% of outcomes)</span><span><i class="sw" style="background:var(--truth)"></i>actual (held-back points)</span><span id="legend-storm" class="hidden"><i class="sw" style="background:var(--storm)"></i>stormy-news band (5–95% of past turbulent periods)</span></div>
     <div class="stats" id="stats" style="margin-top:12px"></div>
   </div>
 
@@ -256,23 +257,34 @@ NA
   </div>
   </section>
   <footer class="disclaimer">
-    <b>Disclaimer.</b> webTimesFM is an independent, unofficial community project. TimesFM is created by Google Research (<a href="https://arxiv.org/abs/2310.10688" target="_blank" rel="noopener">paper</a> · <a href="https://github.com/google-research/timesfm" target="_blank" rel="noopener">code</a> · <a href="https://huggingface.co/google/timesfm-2.5-200m-pytorch" target="_blank" rel="noopener">weights</a>); this site is a conversion of its Apache-2.0 weights and isn't affiliated with or endorsed by Google. Forecasts are educational demonstrations, <b>not financial, investment or betting advice</b>, and can be wrong. Data comes from third-party public sources and may be delayed or revised. Everything runs in your browser: numbers you enter aren't sent to any server. Provided as is, with no warranty. <a href="https://github.com/vishalmysore/webTimesFM/blob/main/docs/what-is-timesfm.md#disclaimer" target="_blank" rel="noopener">Full disclaimer</a> · <a href="https://github.com/vishalmysore/webTimesFM" target="_blank" rel="noopener">Source code</a>
+    <b>Disclaimer.</b> webTimesFM is an independent, unofficial community project. TimesFM is created by Google Research (<a href="https://arxiv.org/abs/2310.10688" target="_blank" rel="noopener">paper</a> · <a href="https://github.com/google-research/timesfm" target="_blank" rel="noopener">code</a> · <a href="https://huggingface.co/google/timesfm-2.5-200m-pytorch" target="_blank" rel="noopener">weights</a>); Chronos-2 is created by Amazon (<a href="https://arxiv.org/abs/2510.15821" target="_blank" rel="noopener">paper</a> · <a href="https://github.com/amazon-science/chronos-forecasting" target="_blank" rel="noopener">code</a> · <a href="https://huggingface.co/amazon/chronos-2" target="_blank" rel="noopener">weights</a>). This site runs conversions of their Apache-2.0 weights and isn't affiliated with or endorsed by Google or Amazon. Forecasts are educational demonstrations, <b>not financial, investment or betting advice</b>, and can be wrong. Data comes from third-party public sources and may be delayed or revised. Everything runs in your browser: numbers you enter aren't sent to any server. Provided as is, with no warranty. <a href="https://github.com/vishalmysore/webTimesFM/blob/main/docs/what-is-timesfm.md#disclaimer" target="_blank" rel="noopener">Full disclaimer</a> · <a href="https://github.com/vishalmysore/webTimesFM" target="_blank" rel="noopener">Source code</a>
   </footer>
 </main>
 
 <script type="module">
 import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/ort.webgpu.min.mjs";
 import { TimesFM } from "./timesfm.js";
+import { Chronos2 } from "./chronos2.js";
 // Weights are served from Hugging Face. Add ?local to the URL to load files next to this page instead.
+const LOCAL = new URLSearchParams(location.search).has("local");
 const HF = "https://huggingface.co/VishalMysore/timesfm-2.5-200m-onnx-web/resolve/main/";
-const BASE = new URLSearchParams(location.search).has("local") ? "./" : HF;
+const HF_C2 = "https://huggingface.co/VishalMysore/chronos-2-onnx-web/resolve/main/";
+const BASE = LOCAL ? "./" : HF, BASE_C2 = LOCAL ? "./" : HF_C2;
+const MODELS = {
+  timesfm: { name: "TimesFM 2.5", cls: TimesFM, base: BASE, files: { q8: ["timesfm25_q8.onnx", 261], q4: ["timesfm25_q4.onnx", 146] } },
+  chronos: { name: "Chronos-2", cls: Chronos2, base: BASE_C2, files: { q8: ["chronos2_q8.onnx", 153], q4: ["chronos2_q4.onnx", 96] } },
+};
 ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/";
 ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
 
 const $ = id => document.getElementById(id);
 const log = s => { $("log").textContent += s + "\n"; $("log").scrollTop = 1e9; console.log("[timesfm]", s); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-let model = null, testdata = null, examples = {}, lastDraw = null, current = null;
+// model = the forecaster used for the Forecast button, self-test and baseball (TimesFM in "Compare both");
+// loaded = every model currently in memory, by key.
+let model = null, loaded = {}, testdata = null, c2test = null, examples = {}, lastDraw = null, current = null;
+const family = () => $("family").value;
+const wanted = () => family() === "both" ? ["timesfm", "chronos"] : [family()];
 
 async function getTestdata() { return testdata ??= await (await fetch(BASE + "testdata.json")).json(); }
 
@@ -321,7 +333,16 @@ function onSample() {
   $("hh").textContent = $("h").value;
 }
 $("sample").onchange = onSample;
-$("model").onchange = () => { if (model) { model = null; $("run").disabled = $("selftest").disabled = $("mlb-run").disabled = true; $("status").textContent = "model changed. Click Load model"; } };
+function precisionLabels() {
+  const mb = k => wanted().reduce((a, m) => a + MODELS[m].files[k][1], 0);
+  $("model").options[0].text = `8-bit (${mb("q8")} MB, most accurate)`;
+  $("model").options[1].text = `4-bit (${mb("q4")} MB, smaller, less accurate on short series)`;
+}
+precisionLabels();
+$("model").onchange = $("family").onchange = () => {
+  precisionLabels();
+  if (model) { model = null; $("run").disabled = $("selftest").disabled = $("mlb-run").disabled = true; $("status").textContent = "model changed. Click Load model"; }
+};
 $("h").oninput = () => $("hh").textContent = $("h").value;
 
 // date label for index i of an example series
@@ -411,12 +432,12 @@ function teamNews(t) {
   const tip = `${n.reason || `normal: ${toneTxt(n.tone)} vs usual ${toneTxt(n.baseline)}`}\n` + n.headlines.slice(0, 3).map(h => "• " + h.title).join("\n");
   return `<span class="pill${n.alert ? " alert" : ""}" title="${esc(tip)}">${n.alert ? "⚠ " : ""}${toneTxt(n.tone)}</span>`;
 }
-function renderMlb(withTfm = null, bands = null) {
+function renderMlb(withTfm = null, bands = null, name = "TimesFM") {
   const mlb = current.mlb, teams = Object.keys(mlb.teams);
   const base = mlbEloOnly ??= simulatePlayoffs(mlb, Object.fromEntries(teams.map(t => [t, [mlb.teams[t].elo, 0]])));
   const rows = teams.sort((a, b) => ((withTfm ?? base).title[b] || 0) - ((withTfm ?? base).title[a] || 0));
   const pct = x => ((x || 0) * 100).toFixed(1) + "%";
-  $("mlb-table").innerHTML = `<tr><th>Team</th><th>${mlb.season} record</th><th>Strength (Elo)</th>${bands ? "<th>TimesFM next-10 band</th>" : ""}<th>News tone<br><span class="note">context only</span></th><th>Wins league series</th><th>Wins World Series<br><span class="note">Elo only</span></th>${withTfm ? '<th>Wins World Series<br><span class="note">+ TimesFM band</span></th>' : ""}</tr>` +
+  $("mlb-table").innerHTML = `<tr><th>Team</th><th>${mlb.season} record</th><th>Strength (Elo)</th>${bands ? `<th>${name} next-10 band</th>` : ""}<th>News tone<br><span class="note">context only</span></th><th>Wins league series</th><th>Wins World Series<br><span class="note">Elo only</span></th>${withTfm ? `<th>Wins World Series<br><span class="note">+ ${name} band</span></th>` : ""}</tr>` +
     rows.map(t => { const T = mlb.teams[t], top = withTfm ?? base;
       return `<tr><td>${esc(t)}</td><td>${T.record[0]}–${T.record[1]}</td><td>${Math.round(T.elo)}</td>${bands ? `<td>${Math.round(bands[t][0])}–${Math.round(bands[t][1])}</td>` : ""}<td>${teamNews(t)}</td><td>${pct(top.pennant[t])}</td>` +
         `<td${withTfm ? "" : ' class="big"'}>${pct(base.title[t])}${withTfm ? "" : `<span class="bar" style="width:${Math.round((base.title[t] || 0) * 120)}px"></span>`}</td>` +
@@ -457,7 +478,7 @@ $("mlb-run").onclick = async () => {
   }
   $("mlb-status").textContent = "simulating 100,000 playoffs…"; await new Promise(r => setTimeout(r, 30));
   const t0 = performance.now(), res = simulatePlayoffs(mlb, strength);
-  renderMlb(res, bands); window.__mlb = res;
+  renderMlb(res, bands, model.name); window.__mlb = res;
   $("mlb-status").textContent = `done in ${((performance.now() - t0) / 1000).toFixed(1)} s`; $("mlb-run").disabled = false;
 };
 
@@ -487,12 +508,20 @@ $("load").onclick = async () => {
   let backend = $("backend").value;
   if (backend === "webgpu" && !navigator.gpu) { log("WebGPU not available in this browser — falling back to WASM"); backend = "wasm"; $("backend").value = "wasm"; }
   try {
-    log(`loading ${$("model").value} on ${backend}…`);
-    model = await TimesFM.load(ort, BASE + $("model").value, backend, (g, t) => $("status").textContent = `downloading ${(g / 1e6).toFixed(0)}${t ? " / " + (t / 1e6).toFixed(0) : ""} MB`);
-    $("status").textContent = `ready · ${backend}`;
-    log(`session ready in ${model.info.sessionMs.toFixed(0)} ms (${(model.info.bytes / 1e6).toFixed(0)} MB)`);
+    const prec = $("model").value;
+    for (const k of Object.keys(loaded)) if (!wanted().includes(k) || loaded[k].key !== `${prec}:${backend}`) delete loaded[k];
+    for (const k of wanted()) {
+      if (loaded[k]) continue;
+      const M = MODELS[k], file = M.files[prec][0];
+      log(`loading ${M.name} (${file}) on ${backend}…`);
+      const m = await M.cls.load(ort, M.base + file, backend, (g, t) => $("status").textContent = `${M.name}: downloading ${(g / 1e6).toFixed(0)}${t ? " / " + (t / 1e6).toFixed(0) : ""} MB`);
+      m.name = M.name; m.key = `${prec}:${backend}`; m.file = file; loaded[k] = m;
+      log(`${M.name} session ready in ${m.info.sessionMs.toFixed(0)} ms (${(m.info.bytes / 1e6).toFixed(0)} MB)`);
+    }
+    model = loaded[wanted()[0]];
+    $("status").textContent = `ready · ${wanted().map(k => MODELS[k].name).join(" + ")} · ${backend}`;
     $("run").disabled = $("selftest").disabled = false;
-    if (current) { $("mlb-run").disabled = false; $("mlb-run").textContent = "Add TimesFM forecast"; }
+    if (current) { $("mlb-run").disabled = false; $("mlb-run").textContent = `Add ${model.name} forecast`; }
     window.__timesfm_ready = true;
   } catch (e) { log("load failed: " + e.message); $("status").textContent = "load failed"; }
   $("load").disabled = false;
@@ -515,15 +544,24 @@ $("run").onclick = async () => {
   const ctx = +$("ctx").value, h = +$("h").value;
   let s; try { s = await getSeries(ctx, h); } catch (e) { log(e.message); return; }
   $("run").disabled = true;
-  const r = await model.forecast(s.hist, h, { maxContext: ctx });
+  const compare = family() === "both" && loaded.timesfm && loaded.chronos;
+  let r, r2 = null;
+  try {
+    r = await model.forecast(s.hist, h, { maxContext: ctx });
+    if (compare) r2 = await loaded.chronos.forecast(s.hist, h, { maxContext: ctx });
+  } catch (e) { log("forecast failed: " + e.message); $("run").disabled = false; return; }
   $("run").disabled = false;
   s.storm = s.meta && !$("stormwrap").classList.contains("hidden") && $("storm").checked ? stormBand(s.known, h) : null;
-  draw(s, r); lastDraw = [s, r]; $("legend-storm").classList.toggle("hidden", !s.storm);
+  draw(s, r, r2); lastDraw = [s, r, r2]; $("legend-storm").classList.toggle("hidden", !s.storm);
+  $("legend-c2").classList.toggle("hidden", !r2);
+  $("legend-name").textContent = r2 ? "TimesFM 2.5 median (shaded: its q10–q90)" : `${model.name} median forecast`;
   const ok = s.truth?.map((v, i) => [v, i]).filter(([v]) => Number.isFinite(v)) ?? [];
   const last = s.hist.findLast(Number.isFinite);
-  const mae = ok.length ? ok.reduce((a, [v, i]) => a + Math.abs(v - r.point[i]), 0) / ok.length : null;
+  const maeOf = f => ok.length ? ok.reduce((a, [v, i]) => a + Math.abs(v - f.point[i]), 0) / ok.length : null;
+  const mae = maeOf(r);
   const naive = ok.length ? ok.reduce((a, [v]) => a + Math.abs(v - last), 0) / ok.length : null;
   const fmt = x => Math.abs(x) >= 100 ? x.toFixed(0) : x.toPrecision(3);
+  if (r2) { compareStats(s, h, [[model.name, r, "--accent"], ["Chronos-2", r2, "--c2"]], maeOf, naive, fmt); return; }
   const unit = s.meta ? ` <span style="color:var(--muted)">${esc(s.meta.unit)}</span>` : "";
   $("stats").innerHTML = `<div><b>${r.ms.toFixed(0)} ms</b>inference (${r.passes} pass${r.passes > 1 ? "es" : ""})</div>` +
     `<div><b>${fmt(r.point.at(-1))}</b>forecast at step ${h}${unit}</div>` +
@@ -532,10 +570,52 @@ $("run").onclick = async () => {
     (mae != null ? `<div><b>${fmt(mae)}</b>MAE vs actual</div><div><b>${fmt(naive)}</b>MAE of "repeat last value"</div>` +
       `<div><b class="${mae < naive ? "" : "warn"}">${mae < naive ? ((1 - mae / naive) * 100).toFixed(0) + "% better" : "no better"}</b>than the naive guess</div>` +
       (mae < naive ? "" : `<div style="flex-basis:100%;color:var(--muted)">That's normal for prices, epidemics and other series driven by outside shocks: "no change" is a hard baseline to beat. Try a shorter horizon, or look at whether the actual line stayed inside the shaded band.</div>`) : "");
-  log(`forecast ${s.meta?.id ?? $("sample").value} h=${h} ctx=${s.hist.length}: ${r.ms.toFixed(0)} ms`);
+  log(`forecast ${model.name} ${s.meta?.id ?? $("sample").value} h=${h} ctx=${s.hist.length}: ${r.ms.toFixed(0)} ms`);
 };
 
+// "Compare both": one row per model with MAE vs actual and vs the "no change" guess.
+function compareStats(s, h, runs, maeOf, naive, fmt) {
+  const unit = s.meta ? ` (${esc(s.meta.unit)})` : "";
+  const maes = runs.map(([, f]) => maeOf(f));
+  const rows = runs.map(([name, f, col], i) => { const m = maes[i];
+    return `<tr><td><i class="sw" style="background:var(${col})"></i>${name}</td><td>${fmt(f.point.at(-1))}</td>` +
+      (m != null ? `<td>${fmt(m)}</td><td class="${m < naive ? "" : "warn"}">${m < naive ? ((1 - m / naive) * 100).toFixed(0) + "% better" : ((m / naive - 1) * 100).toFixed(0) + "% worse"}</td>` : "<td>—</td><td>—</td>") +
+      `<td>${f.ms.toFixed(0)} ms</td></tr>`; });
+  const verdict = maes[0] == null ? "Tick <strong>Hold back</strong> to score both models against the real values."
+    : `<strong>${maes[0] <= maes[1] ? runs[0][0] : runs[1][0]}</strong> was closer on this series (MAE ${fmt(Math.min(...maes))} vs ${fmt(Math.max(...maes))}; "no change" scored ${fmt(naive)}). One series is one test: the winner changes from series to series.`;
+  $("stats").innerHTML = `<div style="flex-basis:100%;min-width:0"><div class="tablewrap"><table class="odds"><tr><th>Model</th><th>Forecast at step ${h}${unit}</th><th>MAE vs actual</th><th>vs "no change"</th><th>Time</th></tr>${rows.join("")}` +
+    (naive != null ? `<tr><td>"No change" (repeat last value)</td><td>${fmt(s.hist.findLast(Number.isFinite))}</td><td>${fmt(naive)}</td><td>—</td><td>—</td></tr>` : "") +
+    `</table></div><p class="note" style="margin:6px 0 0">${verdict}</p></div>`;
+  window.__compare = { id: s.meta?.id ?? $("sample").value, h, naive, models: Object.fromEntries(runs.map(([n, f], i) => [n, { mae: maes[i], ms: Math.round(f.ms) }])) };
+  log(`compare ${window.__compare.id} h=${h}: ` + runs.map(([n], i) => `${n} MAE ${maes[i] == null ? "—" : fmt(maes[i])}`).join(", ") + (naive != null ? `, no change ${fmt(naive)}` : ""));
+}
+
+// Chronos-2 self-test: forecasts from PyTorch Chronos2Pipeline, all 21 quantiles, stored in chronos2_selftest.json.
+async function chronosSelftest(m) {
+  const td = c2test ??= await (await fetch(BASE_C2 + "chronos2_selftest.json")).json(); const results = {};
+  for (const [name, c] of Object.entries(td.cases)) {
+    const ctx = c.context.map(v => v ?? NaN), r = await m.forecast(ctx, c.h, { fixQuantileCrossing: false });
+    const obs = ctx.filter(Number.isFinite), mu = obs.reduce((a, b) => a + b, 0) / obs.length;
+    const sd = Math.sqrt(obs.reduce((a, b) => a + (b - mu) ** 2, 0) / obs.length) || 1;
+    let maxDev = 0, medDev = 0;
+    for (let t = 0; t < c.h; t++) for (let q = 0; q < 21; q++) {
+      const d = Math.abs(r.levels[t][q] - c.torch[q][t]); maxDev = Math.max(maxDev, d); if (q === 10) medDev = Math.max(medDev, d);
+    }
+    results[name] = { max_dev_in_std: +(maxDev / sd).toPrecision(3), median_max_dev_in_std: +(medDev / sd).toPrecision(3), ms: Math.round(r.ms) };
+    log(`${name.padEnd(15)} max|Δ| vs PyTorch = ${(maxDev / sd).toExponential(2)} std (median line ${(medDev / sd).toExponential(2)})  ${r.ms.toFixed(0)} ms`);
+  }
+  return results;
+}
+
 $("selftest").onclick = async () => {
+  if (family() !== "timesfm") {
+    log("Chronos-2 self-test vs PyTorch (differences in units of each series' standard deviation):");
+    const results = await chronosSelftest(loaded.chronos);
+    window.__chronos_selftest = { backend: loaded.chronos.info.backend, model: loaded.chronos.file, results };
+    log("Chronos-2 self-test done");
+    if (family() === "chronos") return;
+  }
+  log("TimesFM self-test vs PyTorch:");
   const td = await getTestdata(); const results = {};
   for (const [name, s] of Object.entries(td.series)) {
     const r = await model.forecast(s.slice(0, td.ctx), td.h, { maxContext: td.ctx, continuousQuantiles: false });
@@ -546,25 +626,27 @@ $("selftest").onclick = async () => {
     results[name] = { max_abs_dev_vs_pytorch: +maxDev.toPrecision(3), rel_dev: +(maxDev / maxScale).toPrecision(3), mae_vs_actual: +mae.toFixed(4), ms: Math.round(r.ms) };
     log(`${name.padEnd(15)} max|Δ| vs PyTorch=${maxDev.toExponential(2)}  MAE vs actual=${mae.toFixed(4)}  ${r.ms.toFixed(0)} ms`);
   }
-  window.__timesfm_selftest = { backend: model.info.backend, model: $("model").value, results };
+  window.__timesfm_selftest = { backend: model.info.backend, model: model.file, results };
   log("self-test done");
 };
 
 addEventListener("resize", () => lastDraw && draw(...lastDraw));
 
-function draw({ hist, truth, meta, offset, storm }, r) {
+function draw({ hist, truth, meta, offset, storm }, r, r2 = null) {
   const c = $("chart"), dpr = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight, B = meta ? 18 : 0;
   c.width = W * dpr; c.height = H * dpr; const g = c.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, W, H);
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const keep = Math.max(3 * r.point.length, 128), show = hist.slice(-keep), skip = hist.length - show.length, n = show.length + r.point.length;
-  const vals = [...show, ...r.quantiles.flatMap(q => [q[1], q[9]]), ...(truth || []), ...(storm ? [...storm.lo, ...storm.hi] : [])].filter(Number.isFinite);
+  const vals = [...show, ...r.quantiles.flatMap(q => [q[1], q[9]]), ...(r2 ? r2.quantiles.flatMap(q => [q[1], q[9]]) : []), ...(truth || []), ...(storm ? [...storm.lo, ...storm.hi] : [])].filter(Number.isFinite);
   let lo = Math.min(...vals), hi = Math.max(...vals); const pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad;
   const X = i => 8 + (i / (n - 1)) * (W - 16), Y = v => H - B - 8 - ((v - lo) / (hi - lo)) * (H - B - 16);
   const line = (arr, off, col, w) => { g.beginPath(); let pen = false; arr.forEach((v, i) => { if (!Number.isFinite(v)) { pen = false; return; } pen ? g.lineTo(X(i + off), Y(v)) : g.moveTo(X(i + off), Y(v)); pen = true; }); g.strokeStyle = col; g.lineWidth = w; g.stroke(); };
   g.beginPath(); r.quantiles.forEach((q, i) => g.lineTo(X(show.length + i), Y(q[9]))); for (let i = r.quantiles.length - 1; i >= 0; i--) g.lineTo(X(show.length + i), Y(r.quantiles[i][1])); g.fillStyle = css("--band"); g.fill();
   g.strokeStyle = css("--line"); g.setLineDash([4, 4]); g.beginPath(); g.moveTo(X(show.length), 0); g.lineTo(X(show.length), H - B); g.stroke(); g.setLineDash([]);
   if (storm) { g.setLineDash([5, 4]); line(storm.lo, show.length, css("--storm"), 1.5); line(storm.hi, show.length, css("--storm"), 1.5); g.setLineDash([]); }
-  line(show, 0, css("--muted"), 1.2); line([...r.point], show.length, css("--accent"), 2); if (truth) line(truth, show.length, css("--truth"), 1);
+  if (r2) { g.setLineDash([2, 3]); line(r2.quantiles.map(q => q[1]), show.length, css("--c2"), 1.2); line(r2.quantiles.map(q => q[9]), show.length, css("--c2"), 1.2); g.setLineDash([]); }
+  line(show, 0, css("--muted"), 1.2); line([...r.point], show.length, css("--accent"), 2); if (r2) line([...r2.point], show.length, css("--c2"), 2);
+  if (truth) line(truth, show.length, css("--truth"), 1);
   // y range and, for real examples, dates under the chart
   g.fillStyle = css("--muted"); g.font = "11px system-ui,sans-serif"; g.textAlign = "left";
   const fmt = x => Math.abs(hi - lo) >= 10 ? x.toFixed(0) : x.toPrecision(3);
